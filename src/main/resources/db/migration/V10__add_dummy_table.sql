@@ -1,0 +1,6 @@
+CREATE TABLE dummy_data (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    random_number INT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    message VARCHAR(255) NOT NULL
+);

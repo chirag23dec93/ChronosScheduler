@@ -1,0 +1,549 @@
+================================================================================
+                       MESSAGE QUEUE JOB TYPE - CURL EXAMPLES
+================================================================================
+
+# Authentication Token (use for all requests)
+TOKEN="eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJyZXRyeUB0ZXN0LmNvbSIsImlhdCI6MTc1ODM3MjU1NCwiZXhwIjoxNzU4NDU4OTU0fQ.Me91m3fwqVZ7eGHYBhScCCXAoj6o6BtCM0BZaxRnSVY"
+
+================================================================================
+1. KAFKA PRODUCE OPERATION - SIMPLE MESSAGE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Kafka Produce Simple Message",
+    "type": "MESSAGE_QUEUE",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:50:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "MESSAGE_QUEUE",
+      "operationType": "PRODUCE",
+      "queueName": "chronos-events",
+      "messageBody": "Hello from Chronos Scheduler!",
+      "queueConfig": {
+        "type": "KAFKA",
+        "bootstrapServers": "kafka:9092"
+      }
+    }
+  }'
+
+================================================================================
+2. KAFKA PRODUCE WITH RETRY POLICY - COMPLEX MESSAGE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Kafka Produce with Retry",
+    "type": "MESSAGE_QUEUE",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:51:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 5,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "NETWORK_ERROR"]
+    },
+    "payload": {
+      "type": "MESSAGE_QUEUE",
+      "operationType": "PRODUCE",
+      "queueName": "user-events",
+      "messageBody": "{\"eventType\": \"USER_CREATED\", \"userId\": 12345, \"timestamp\": \"2025-09-20T15:51:00Z\", \"metadata\": {\"source\": \"chronos\", \"version\": \"1.0\"}}",
+      "messageGroupId": "user-events-group",
+      "messageAttributes": {
+        "eventType": "USER_CREATED",
+        "priority": "HIGH",
+        "source": "chronos-scheduler"
+      },
+      "queueConfig": {
+        "type": "KAFKA",
+        "bootstrapServers": "kafka:9092",
+        "acks": "all",
+        "retries": 3
+      }
+    }
+  }'
+
+================================================================================
+3. KAFKA CONSUME OPERATION - BATCH PROCESSING
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Kafka Consume Messages",
+    "type": "MESSAGE_QUEUE",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:52:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 10,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT"]
+    },
+    "payload": {
+      "type": "MESSAGE_QUEUE",
+      "operationType": "CONSUME",
+      "queueName": "chronos-events",
+      "batchSize": 10,
+      "visibilityTimeoutSeconds": 30,
+      "queueConfig": {
+        "type": "KAFKA",
+        "bootstrapServers": "kafka:9092",
+        "groupId": "chronos-consumer-group",
+        "autoOffsetReset": "earliest"
+      }
+    }
+  }'
+
+================================================================================
+4. KAFKA PURGE OPERATION - TOPIC CLEANUP
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Kafka Topic Purge",
+    "type": "MESSAGE_QUEUE",
+    "priority": "LOW",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:53:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "MESSAGE_QUEUE",
+      "operationType": "PURGE",
+      "queueName": "test-topic",
+      "queueConfig": {
+        "type": "KAFKA",
+        "bootstrapServers": "kafka:9092"
+      }
+    }
+  }'
+
+================================================================================
+5. KAFKA MOVE_DLQ OPERATION - DEAD LETTER QUEUE RECOVERY
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Kafka DLQ Recovery",
+    "type": "MESSAGE_QUEUE",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:54:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 15,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "NETWORK_ERROR"]
+    },
+    "payload": {
+      "type": "MESSAGE_QUEUE",
+      "operationType": "MOVE_DLQ",
+      "queueName": "failed-events.dlq",
+      "queueConfig": {
+        "type": "KAFKA",
+        "bootstrapServers": "kafka:9092",
+        "targetQueue": "recovered-events"
+      }
+    }
+  }'
+
+================================================================================
+6. RECURRING KAFKA PRODUCER - CRON SCHEDULE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Heartbeat Message Producer",
+    "type": "MESSAGE_QUEUE",
+    "priority": "LOW",
+    "schedule": {
+      "scheduleType": "CRON",
+      "cronExpression": "0 */2 * * * ?",
+      "timezone": "UTC",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 30,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT"]
+    },
+    "payload": {
+      "type": "MESSAGE_QUEUE",
+      "operationType": "PRODUCE",
+      "queueName": "system-heartbeat",
+      "messageBody": "{\"service\": \"chronos-scheduler\", \"status\": \"healthy\", \"timestamp\": \"${timestamp}\"}",
+      "messageAttributes": {
+        "messageType": "heartbeat",
+        "service": "chronos"
+      },
+      "queueConfig": {
+        "type": "KAFKA",
+        "bootstrapServers": "kafka:9092"
+      }
+    }
+  }'
+
+================================================================================
+7. RABBITMQ PRODUCE OPERATION - WITH ROUTING KEY
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "RabbitMQ Produce with Routing",
+    "type": "MESSAGE_QUEUE",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:56:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 4,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 8,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "NETWORK_ERROR"]
+    },
+    "payload": {
+      "type": "MESSAGE_QUEUE",
+      "operationType": "PRODUCE",
+      "queueName": "notifications",
+      "messageBody": "{\"type\": \"email\", \"recipient\": \"user@example.com\", \"subject\": \"Job Completed\", \"body\": \"Your scheduled job has completed successfully.\"}",
+      "messageGroupId": "notification-group",
+      "messageDeduplicationId": "notif-12345",
+      "messageAttributes": {
+        "priority": "normal",
+        "type": "email",
+        "persistent": "true"
+      },
+      "queueConfig": {
+        "type": "RABBITMQ",
+        "host": "rabbitmq",
+        "port": 5672,
+        "username": "guest",
+        "password": "guest",
+        "exchange": "notifications.exchange",
+        "routingKey": "email.notifications"
+      }
+    }
+  }'
+
+================================================================================
+8. RABBITMQ CONSUME OPERATION - BATCH PROCESSING
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "RabbitMQ Batch Consumer",
+    "type": "MESSAGE_QUEUE",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "INTERVAL",
+      "intervalSeconds": 600,
+      "misfirePolicy": "RESCHEDULE"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 12,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "NETWORK_ERROR"]
+    },
+    "payload": {
+      "type": "MESSAGE_QUEUE",
+      "operationType": "CONSUME",
+      "queueName": "processing-queue",
+      "batchSize": 25,
+      "visibilityTimeoutSeconds": 60,
+      "queueConfig": {
+        "type": "RABBITMQ",
+        "host": "rabbitmq",
+        "port": 5672,
+        "username": "guest",
+        "password": "guest",
+        "prefetchCount": 25,
+        "autoAck": false
+      }
+    }
+  }'
+
+================================================================================
+9. HIGH-VOLUME KAFKA PRODUCER - OPTIMIZED SETTINGS
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "High Volume Kafka Producer",
+    "type": "MESSAGE_QUEUE",
+    "priority": "CRITICAL",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:00:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 5,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 3,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "NETWORK_ERROR", "BROKER_ERROR"]
+    },
+    "payload": {
+      "type": "MESSAGE_QUEUE",
+      "operationType": "PRODUCE",
+      "queueName": "high-volume-events",
+      "messageBody": "{\"eventId\": \"${uuid}\", \"data\": \"bulk processing event\", \"timestamp\": \"${timestamp}\", \"batchId\": \"batch-001\"}",
+      "batchSize": 100,
+      "messageAttributes": {
+        "compression": "gzip",
+        "priority": "high",
+        "persistent": "true"
+      },
+      "queueConfig": {
+        "type": "KAFKA",
+        "bootstrapServers": "kafka:9092",
+        "acks": "1",
+        "batchSize": 16384,
+        "lingerMs": 5,
+        "compressionType": "gzip",
+        "maxInFlightRequestsPerConnection": 5
+      }
+    }
+  }'
+
+================================================================================
+10. KAFKA CONSUMER WITH ERROR HANDLING - DLQ SUPPORT
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Kafka Consumer with DLQ",
+    "type": "MESSAGE_QUEUE",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:02:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 10,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "PROCESSING_ERROR"]
+    },
+    "payload": {
+      "type": "MESSAGE_QUEUE",
+      "operationType": "CONSUME",
+      "queueName": "order-events",
+      "batchSize": 20,
+      "visibilityTimeoutSeconds": 45,
+      "messageAttributes": {
+        "maxRetries": "3",
+        "dlqEnabled": "true"
+      },
+      "queueConfig": {
+        "type": "KAFKA",
+        "bootstrapServers": "kafka:9092",
+        "groupId": "order-processor-group",
+        "autoOffsetReset": "latest",
+        "enableAutoCommit": false,
+        "dlqTopic": "order-events.dlq",
+        "retryTopic": "order-events.retry"
+      }
+    }
+  }'
+
+================================================================================
+11. AMAZON SQS INTEGRATION EXAMPLE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "AWS SQS Message Producer",
+    "type": "MESSAGE_QUEUE",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:05:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 4,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 6,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "AWS_ERROR"]
+    },
+    "payload": {
+      "type": "MESSAGE_QUEUE",
+      "operationType": "PRODUCE",
+      "queueName": "chronos-notifications.fifo",
+      "messageBody": "{\"notificationType\": \"job_completion\", \"jobId\": \"job-123\", \"status\": \"SUCCESS\", \"timestamp\": \"2025-09-20T16:05:00Z\"}",
+      "messageGroupId": "job-notifications",
+      "messageDeduplicationId": "job-123-completion",
+      "messageAttributes": {
+        "NotificationType": "job_completion",
+        "Priority": "normal"
+      },
+      "queueConfig": {
+        "type": "SQS",
+        "region": "us-east-1",
+        "accessKeyId": "${AWS_ACCESS_KEY_ID}",
+        "secretAccessKey": "${AWS_SECRET_ACCESS_KEY}",
+        "queueUrl": "https://sqs.us-east-1.amazonaws.com/123456789012/chronos-notifications.fifo"
+      }
+    }
+  }'
+
+================================================================================
+12. MULTI-TOPIC KAFKA OPERATION - FANOUT PATTERN
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Multi-Topic Kafka Fanout",
+    "type": "MESSAGE_QUEUE",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:08:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 20,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "BROKER_ERROR"]
+    },
+    "payload": {
+      "type": "MESSAGE_QUEUE",
+      "operationType": "PRODUCE",
+      "queueName": "user-events,audit-events,analytics-events",
+      "messageBody": "{\"eventType\": \"USER_LOGIN\", \"userId\": 67890, \"timestamp\": \"2025-09-20T16:08:00Z\", \"ipAddress\": \"192.168.1.100\", \"userAgent\": \"Mozilla/5.0\"}",
+      "messageAttributes": {
+        "eventType": "USER_LOGIN",
+        "fanout": "true",
+        "topics": "3"
+      },
+      "queueConfig": {
+        "type": "KAFKA",
+        "bootstrapServers": "kafka:9092",
+        "acks": "all",
+        "idempotence": true,
+        "transactional": true,
+        "transactionalId": "chronos-fanout-producer"
+      }
+    }
+  }'
+
+================================================================================
+                              NOTES
+================================================================================
+
+Message Queue Job Payload Fields:
+- operationType (required): PRODUCE, CONSUME, MOVE_DLQ, PURGE
+- queueName (required): Queue/topic name to operate on
+- messageBody (optional): Message content for PRODUCE operations
+- messageGroupId (optional): Message grouping identifier
+- messageDeduplicationId (optional): Deduplication identifier
+- messageAttributes (optional): Key-value pairs for message metadata
+- queueConfig (required): Queue system configuration
+- batchSize (optional): Number of messages to process in batch
+- visibilityTimeoutSeconds (optional): Message visibility timeout
+
+Supported Queue Types:
+- KAFKA: Apache Kafka message broker
+- RABBITMQ: RabbitMQ message broker
+- SQS: Amazon Simple Queue Service
+- ACTIVEMQ: Apache ActiveMQ (planned)
+
+Operation Types:
+- PRODUCE: Send messages to queue/topic
+- CONSUME: Read messages from queue/topic
+- MOVE_DLQ: Move messages from Dead Letter Queue
+- PURGE: Clear all messages from queue/topic
+
+Kafka Configuration Options:
+- bootstrapServers: Kafka broker addresses
+- acks: Acknowledgment level (0, 1, all)
+- retries: Number of retries for failed sends
+- batchSize: Batch size for producer
+- lingerMs: Time to wait for batching
+- compressionType: Message compression (gzip, snappy, lz4)
+- groupId: Consumer group identifier
+- autoOffsetReset: Consumer offset reset policy
+
+RabbitMQ Configuration Options:
+- host: RabbitMQ server hostname
+- port: RabbitMQ server port (default: 5672)
+- username: Authentication username
+- password: Authentication password
+- exchange: Exchange name for routing
+- routingKey: Message routing key
+- prefetchCount: Consumer prefetch count
+- autoAck: Automatic acknowledgment
+
+Retry Error Types:
+- CONNECTION_ERROR: Queue system connection failures
+- TIMEOUT: Operation timeout errors
+- NETWORK_ERROR: Network connectivity issues
+- BROKER_ERROR: Message broker specific errors
+- PROCESSING_ERROR: Message processing failures
+- AWS_ERROR: AWS service specific errors
+
+Best Practices:
+- Use message deduplication for critical operations
+- Set appropriate batch sizes for performance
+- Configure dead letter queues for error handling
+- Use message attributes for routing and filtering
+- Set visibility timeouts based on processing time
+- Enable compression for high-volume scenarios
+- Use transactional producers for exactly-once semantics
+- Monitor queue depths and consumer lag
+
+Security Considerations:
+- Store credentials securely (environment variables)
+- Use IAM roles for AWS services
+- Enable SSL/TLS for production connections
+- Implement proper authentication and authorization
+- Validate message content to prevent injection attacks
+- Use VPC endpoints for cloud services
+
+================================================================================

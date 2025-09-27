@@ -1,0 +1,341 @@
+================================================================================
+                           HTTP JOB TYPE - CURL EXAMPLES
+================================================================================
+
+# Authentication Token (use for all requests)
+TOKEN="eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJyZXRyeUB0ZXN0LmNvbSIsImlhdCI6MTc1ODM3MjU1NCwiZXhwIjoxNzU4NDU4OTU0fQ.Me91m3fwqVZ7eGHYBhScCCXAoj6o6BtCM0BZaxRnSVY"
+
+================================================================================
+1. SIMPLE GET REQUEST - SUCCESS CASE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Simple GET Request",
+    "type": "HTTP",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T14:55:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "HTTP",
+      "httpUrl": "https://httpbin.org/get",
+      "httpMethod": "GET",
+      "timeoutSeconds": 30
+    }
+  }'
+
+================================================================================
+2. POST REQUEST WITH JSON BODY
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "POST with JSON Body",
+    "type": "HTTP",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T14:56:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "HTTP",
+      "httpUrl": "https://httpbin.org/post",
+      "httpMethod": "POST",
+      "httpHeaders": {
+        "Content-Type": "application/json",
+        "User-Agent": "ChronosScheduler/1.0"
+      },
+      "httpBody": "{\"message\": \"Hello from Chronos\", \"timestamp\": \"2025-09-20T14:56:00Z\"}",
+      "timeoutSeconds": 45
+    }
+  }'
+
+================================================================================
+3. HTTP REQUEST WITH CUSTOM HEADERS
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "HTTP with Custom Headers",
+    "type": "HTTP",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T14:57:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "HTTP",
+      "httpUrl": "https://httpbin.org/headers",
+      "httpMethod": "GET",
+      "httpHeaders": {
+        "X-Custom-Header": "ChronosValue",
+        "X-Request-ID": "chronos-12345",
+        "Accept": "application/json",
+        "Authorization": "Bearer test-token"
+      },
+      "timeoutSeconds": 30
+    }
+  }'
+
+================================================================================
+4. HTTP REQUEST WITH RETRY POLICY - FAILURE CASE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "HTTP with Retry - Will Fail",
+    "type": "HTTP",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T14:58:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 5,
+      "retryOn": ["5XX", "TIMEOUT", "CONNECTION_ERROR"]
+    },
+    "payload": {
+      "type": "HTTP",
+      "httpUrl": "https://httpbin.org/status/500",
+      "httpMethod": "GET",
+      "timeoutSeconds": 10
+    }
+  }'
+
+================================================================================
+5. RECURRING HTTP JOB - CRON SCHEDULE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Health Check - Every 5 Minutes",
+    "type": "HTTP",
+    "priority": "LOW",
+    "schedule": {
+      "scheduleType": "CRON",
+      "cronExpression": "0 */5 * * * ?",
+      "timezone": "UTC",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 30,
+      "retryOn": ["TIMEOUT", "CONNECTION_ERROR", "5XX"]
+    },
+    "payload": {
+      "type": "HTTP",
+      "httpUrl": "https://httpbin.org/status/200",
+      "httpMethod": "GET",
+      "httpHeaders": {
+        "User-Agent": "ChronosHealthCheck/1.0"
+      },
+      "timeoutSeconds": 15
+    }
+  }'
+
+================================================================================
+6. PUT REQUEST WITH FORM DATA
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "PUT Request with Form Data",
+    "type": "HTTP",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:00:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "HTTP",
+      "httpUrl": "https://httpbin.org/put",
+      "httpMethod": "PUT",
+      "httpHeaders": {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      "httpBody": "name=ChronosJob&status=active&priority=high",
+      "timeoutSeconds": 30
+    }
+  }'
+
+================================================================================
+7. HTTP REQUEST WITH LONG TIMEOUT - INTERVAL SCHEDULE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Long Running HTTP Request",
+    "type": "HTTP",
+    "priority": "LOW",
+    "schedule": {
+      "scheduleType": "INTERVAL",
+      "intervalSeconds": 3600,
+      "misfirePolicy": "RESCHEDULE"
+    },
+    "retryPolicy": {
+      "maxAttempts": 5,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 10,
+      "retryOn": ["TIMEOUT", "CONNECTION_ERROR", "5XX", "NETWORK_ERROR"]
+    },
+    "payload": {
+      "type": "HTTP",
+      "httpUrl": "https://httpbin.org/delay/5",
+      "httpMethod": "GET",
+      "httpHeaders": {
+        "Accept": "application/json"
+      },
+      "timeoutSeconds": 120
+    }
+  }'
+
+================================================================================
+8. DELETE REQUEST WITH AUTHENTICATION
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "DELETE Request with Auth",
+    "type": "HTTP",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:02:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 15,
+      "retryOn": ["5XX", "TIMEOUT"]
+    },
+    "payload": {
+      "type": "HTTP",
+      "httpUrl": "https://httpbin.org/delete",
+      "httpMethod": "DELETE",
+      "httpHeaders": {
+        "Authorization": "Bearer test-delete-token",
+        "X-API-Key": "chronos-api-key-123"
+      },
+      "timeoutSeconds": 25
+    }
+  }'
+
+================================================================================
+9. HTTP REQUEST DESIGNED TO TIMEOUT (RETRY TEST)
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Timeout Test with Retries",
+    "type": "HTTP",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:03:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 4,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 3,
+      "retryOn": ["TIMEOUT", "CONNECTION_ERROR", "5XX"]
+    },
+    "payload": {
+      "type": "HTTP",
+      "httpUrl": "https://httpbin.org/delay/30",
+      "httpMethod": "GET",
+      "timeoutSeconds": 5
+    }
+  }'
+
+================================================================================
+10. PATCH REQUEST WITH COMPLEX JSON
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "PATCH Request Complex JSON",
+    "type": "HTTP",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:04:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "HTTP",
+      "httpUrl": "https://httpbin.org/patch",
+      "httpMethod": "PATCH",
+      "httpHeaders": {
+        "Content-Type": "application/json",
+        "X-Source": "ChronosScheduler"
+      },
+      "httpBody": "{\"operation\": \"update\", \"data\": {\"id\": 123, \"name\": \"Updated Name\", \"tags\": [\"chronos\", \"scheduler\", \"job\"]}, \"metadata\": {\"updatedBy\": \"system\", \"version\": 2}}",
+      "timeoutSeconds": 40
+    }
+  }'
+
+================================================================================
+                              NOTES
+================================================================================
+
+HTTP Job Payload Fields:
+- httpUrl (required): Target URL for the HTTP request
+- httpMethod (required): GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS
+- httpHeaders (optional): Key-value pairs for request headers
+- httpBody (optional): Request body content (for POST, PUT, PATCH)
+- timeoutSeconds (optional): Request timeout (default: 30 seconds)
+
+Retry Policy Fields:
+- maxAttempts: Maximum number of retry attempts
+- backoffStrategy: FIXED or EXPONENTIAL
+- backoffSeconds: Base delay between retries
+- retryOn: Array of error conditions to retry on
+  * "5XX": HTTP 5xx status codes
+  * "TIMEOUT": Request timeout errors
+  * "CONNECTION_ERROR": Network connection issues
+  * "NETWORK_ERROR": General network problems
+
+Schedule Types:
+- ONCE: Single execution at specified time
+- CRON: Recurring based on cron expression
+- INTERVAL: Recurring at fixed intervals
+
+Priority Levels:
+- LOW: Background processing
+- MEDIUM: Normal priority
+- HIGH: Urgent processing
+- CRITICAL: Highest priority
+
+================================================================================

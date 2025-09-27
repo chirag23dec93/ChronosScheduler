@@ -1,0 +1,4 @@
+ALTER TABLE jobs
+ADD COLUMN last_run_at TIMESTAMP,
+ADD COLUMN next_run_at TIMESTAMP,
+ADD COLUMN worker_id VARCHAR(255);

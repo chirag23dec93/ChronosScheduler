@@ -1,0 +1,561 @@
+================================================================================
+                          CACHE JOB TYPE - CURL EXAMPLES
+================================================================================
+
+# Authentication Token (use for all requests)
+TOKEN="eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJyZXRyeUB0ZXN0LmNvbSIsImlhdCI6MTc1ODM3MjU1NCwiZXhwIjoxNzU4NDU4OTU0fQ.Me91m3fwqVZ7eGHYBhScCCXAoj6o6BtCM0BZaxRnSVY"
+
+================================================================================
+1. CACHE WARM OPERATION - PRELOAD CACHE ENTRIES
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Warm User Cache",
+    "type": "CACHE",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:30:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "CACHE",
+      "operation": "WARM",
+      "region": "user-cache",
+      "cacheKeys": ["user:1", "user:2", "user:3", "user:active"],
+      "timeToLiveSeconds": 3600,
+      "skipIfExists": false,
+      "async": false,
+      "cacheConfig": {
+        "preloadStrategy": "eager",
+        "dataSource": "database"
+      }
+    }
+  }'
+
+================================================================================
+2. CACHE INVALIDATE OPERATION - CLEAR SPECIFIC KEYS
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Invalidate Job Cache Keys",
+    "type": "CACHE",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:31:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 10,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "CACHE_ERROR"]
+    },
+    "payload": {
+      "type": "CACHE",
+      "operation": "INVALIDATE",
+      "region": "job-cache",
+      "cacheKeys": ["job:scheduled", "job:running", "job:stats"],
+      "async": true,
+      "cacheConfig": {
+        "invalidationStrategy": "immediate",
+        "notifyOtherNodes": true
+      }
+    }
+  }'
+
+================================================================================
+3. CACHE SYNC OPERATION - CROSS-REGION SYNCHRONIZATION
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Sync Cache Regions",
+    "type": "CACHE",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:32:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 5,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "CACHE_ERROR"]
+    },
+    "payload": {
+      "type": "CACHE",
+      "operation": "SYNC",
+      "region": "primary-cache",
+      "sourceRegion": "backup-cache",
+      "cacheKeys": ["config:*", "metadata:*"],
+      "timeToLiveSeconds": 7200,
+      "skipIfExists": true,
+      "async": false,
+      "cacheConfig": {
+        "syncDirection": "bidirectional",
+        "conflictResolution": "source_wins",
+        "batchSize": 100
+      }
+    }
+  }'
+
+================================================================================
+4. CACHE STATS OPERATION - COLLECT CACHE STATISTICS
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Collect Cache Statistics",
+    "type": "CACHE",
+    "priority": "LOW",
+    "schedule": {
+      "scheduleType": "CRON",
+      "cronExpression": "0 */10 * * * ?",
+      "timezone": "UTC",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "CACHE",
+      "operation": "STATS",
+      "region": "all-regions",
+      "async": true,
+      "cacheConfig": {
+        "includeMemoryUsage": true,
+        "includeHitRatio": true,
+        "includeKeyCount": true,
+        "includeEvictionStats": true,
+        "exportFormat": "json"
+      }
+    }
+  }'
+
+================================================================================
+5. RECURRING CACHE WARM - INTERVAL SCHEDULE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Periodic Cache Warming",
+    "type": "CACHE",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "INTERVAL",
+      "intervalSeconds": 1800,
+      "misfirePolicy": "RESCHEDULE"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 15,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "CACHE_ERROR"]
+    },
+    "payload": {
+      "type": "CACHE",
+      "operation": "WARM",
+      "region": "session-cache",
+      "cacheKeys": ["active_sessions", "user_preferences", "auth_tokens"],
+      "timeToLiveSeconds": 1800,
+      "skipIfExists": true,
+      "async": true,
+      "cacheConfig": {
+        "warmupSource": "database",
+        "prefetchRelated": true,
+        "compressionEnabled": true
+      }
+    }
+  }'
+
+================================================================================
+6. BULK CACHE INVALIDATION - PATTERN-BASED
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Bulk Invalidate User Sessions",
+    "type": "CACHE",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:35:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 4,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 8,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "CACHE_ERROR", "PATTERN_ERROR"]
+    },
+    "payload": {
+      "type": "CACHE",
+      "operation": "INVALIDATE",
+      "region": "session-cache",
+      "cacheKeys": ["session:*", "user:session:*", "temp:*"],
+      "async": true,
+      "cacheConfig": {
+        "patternMatching": true,
+        "batchSize": 50,
+        "maxKeysPerBatch": 1000,
+        "notifyApplications": true
+      }
+    }
+  }'
+
+================================================================================
+7. CACHE REGION SYNC WITH TTL - DISASTER RECOVERY
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "DR Cache Sync",
+    "type": "CACHE",
+    "priority": "CRITICAL",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:37:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 5,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 12,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "CACHE_ERROR", "SYNC_ERROR"]
+    },
+    "payload": {
+      "type": "CACHE",
+      "operation": "SYNC",
+      "region": "production-cache",
+      "sourceRegion": "dr-cache",
+      "cacheKeys": ["critical:*", "config:*", "auth:*"],
+      "timeToLiveSeconds": 14400,
+      "skipIfExists": false,
+      "async": false,
+      "cacheConfig": {
+        "syncMode": "full",
+        "verifyIntegrity": true,
+        "compressionEnabled": true,
+        "encryptionEnabled": true,
+        "maxSyncTime": 300
+      }
+    }
+  }'
+
+================================================================================
+8. SCHEDULED CACHE CLEANUP - MAINTENANCE JOB
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Daily Cache Cleanup",
+    "type": "CACHE",
+    "priority": "LOW",
+    "schedule": {
+      "scheduleType": "CRON",
+      "cronExpression": "0 0 2 * * ?",
+      "timezone": "UTC",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 30,
+      "retryOn": ["CONNECTION_ERROR", "CACHE_ERROR"]
+    },
+    "payload": {
+      "type": "CACHE",
+      "operation": "INVALIDATE",
+      "region": "temp-cache",
+      "cacheKeys": ["temp:*", "expired:*", "old:*"],
+      "async": true,
+      "cacheConfig": {
+        "cleanupExpired": true,
+        "compactMemory": true,
+        "defragmentCache": true,
+        "generateReport": true
+      }
+    }
+  }'
+
+================================================================================
+9. MULTI-REGION CACHE WARM - DISTRIBUTED SETUP
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Multi-Region Cache Warm",
+    "type": "CACHE",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:40:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 10,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "CACHE_ERROR"]
+    },
+    "payload": {
+      "type": "CACHE",
+      "operation": "WARM",
+      "region": "global-cache,regional-cache-us,regional-cache-eu",
+      "cacheKeys": ["global:config", "global:features", "global:rates"],
+      "timeToLiveSeconds": 10800,
+      "skipIfExists": true,
+      "async": true,
+      "cacheConfig": {
+        "distributedWarm": true,
+        "replicationFactor": 3,
+        "consistencyLevel": "eventual",
+        "parallelRegions": true
+      }
+    }
+  }'
+
+================================================================================
+10. CACHE PERFORMANCE STATS - DETAILED MONITORING
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Detailed Cache Performance Stats",
+    "type": "CACHE",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "CRON",
+      "cronExpression": "0 */5 * * * ?",
+      "timezone": "UTC",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "CACHE",
+      "operation": "STATS",
+      "region": "performance-cache",
+      "async": false,
+      "cacheConfig": {
+        "detailedStats": true,
+        "includeMemoryUsage": true,
+        "includeHitRatio": true,
+        "includeKeyCount": true,
+        "includeEvictionStats": true,
+        "includeLatencyStats": true,
+        "includeThroughputStats": true,
+        "exportToMetrics": true,
+        "exportFormat": "prometheus",
+        "histogramBuckets": [1, 5, 10, 25, 50, 100, 250, 500, 1000]
+      }
+    }
+  }'
+
+================================================================================
+11. CACHE BACKUP OPERATION - DATA PERSISTENCE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Cache Backup to Persistent Storage",
+    "type": "CACHE",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "CRON",
+      "cronExpression": "0 0 */6 * * ?",
+      "timezone": "UTC",
+      "misfirePolicy": "RESCHEDULE"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 20,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "CACHE_ERROR", "STORAGE_ERROR"]
+    },
+    "payload": {
+      "type": "CACHE",
+      "operation": "SYNC",
+      "region": "critical-cache",
+      "sourceRegion": "backup-storage",
+      "cacheKeys": ["persistent:*", "config:*", "state:*"],
+      "timeToLiveSeconds": 86400,
+      "skipIfExists": false,
+      "async": true,
+      "cacheConfig": {
+        "backupMode": true,
+        "compressionLevel": 6,
+        "encryptBackup": true,
+        "backupLocation": "/data/cache-backups",
+        "retentionDays": 7
+      }
+    }
+  }'
+
+================================================================================
+12. CACHE PRELOAD FROM DATABASE - STARTUP OPTIMIZATION
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Database to Cache Preload",
+    "type": "CACHE",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:45:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 4,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 15,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "CACHE_ERROR", "DATABASE_ERROR"]
+    },
+    "payload": {
+      "type": "CACHE",
+      "operation": "WARM",
+      "region": "application-cache",
+      "cacheKeys": ["users:active", "jobs:scheduled", "config:runtime"],
+      "timeToLiveSeconds": 7200,
+      "skipIfExists": true,
+      "async": false,
+      "cacheConfig": {
+        "dataSource": "mysql",
+        "preloadQueries": {
+          "users:active": "SELECT id, name, email FROM users WHERE status = \"ACTIVE\"",
+          "jobs:scheduled": "SELECT id, name, type FROM jobs WHERE status = \"SCHEDULED\"",
+          "config:runtime": "SELECT key, value FROM config WHERE category = \"runtime\""
+        },
+        "batchSize": 100,
+        "connectionPool": "primary"
+      }
+    }
+  }'
+
+================================================================================
+                              NOTES
+================================================================================
+
+Cache Job Payload Fields:
+- operation (required): WARM, INVALIDATE, SYNC, STATS
+- region (required): Cache region name to operate on
+- sourceRegion (optional): Source region for SYNC operations
+- cacheKeys (optional): Specific keys to operate on (supports patterns)
+- timeToLiveSeconds (optional): TTL for cache entries
+- skipIfExists (optional): Skip operation if key already exists
+- async (optional): Execute operation asynchronously
+- cacheConfig (optional): Additional configuration parameters
+
+Supported Operations:
+- WARM: Pre-load cache entries with data from data source
+- INVALIDATE: Remove entries from cache (supports patterns)
+- SYNC: Copy entries between cache regions
+- STATS: Collect and export cache statistics
+
+Cache Configuration Options:
+- preloadStrategy: eager, lazy, on-demand
+- dataSource: database, file, api, manual
+- invalidationStrategy: immediate, lazy, scheduled
+- syncDirection: unidirectional, bidirectional
+- conflictResolution: source_wins, target_wins, merge, skip
+- patternMatching: Enable wildcard key matching
+- batchSize: Number of operations per batch
+- compressionEnabled: Enable data compression
+- encryptionEnabled: Enable data encryption
+
+Spring Cache Integration:
+- Supports Spring Cache abstraction
+- Redis backend with TTL support
+- Caffeine local cache support
+- Multi-level cache hierarchies
+- Cache event notifications
+- Metrics and monitoring integration
+
+Redis-Specific Features:
+- TTL support for automatic expiration
+- Pattern-based key operations (SCAN)
+- Pipeline operations for bulk processing
+- Cluster support for distributed caching
+- Pub/Sub for cache invalidation events
+- Memory optimization and compression
+
+Performance Considerations:
+- Batch operations for bulk cache updates
+- Asynchronous processing for non-blocking operations
+- Connection pooling for high-throughput scenarios
+- Memory usage monitoring and alerts
+- Hit ratio optimization strategies
+- Eviction policy configuration
+
+Error Handling & Retry:
+- Connection error recovery
+- Timeout handling for slow operations
+- Cache-specific error types
+- Pattern matching error handling
+- Batch operation error isolation
+- Graceful degradation strategies
+
+Monitoring & Statistics:
+- Hit/miss ratios and trends
+- Memory usage and capacity planning
+- Key count and distribution
+- Eviction statistics and patterns
+- Latency and throughput metrics
+- Error rates and failure analysis
+
+Use Cases:
+- Application startup cache warming
+- Session data management
+- Configuration caching
+- User preference storage
+- Temporary data caching
+- Cross-region data synchronization
+- Cache maintenance and cleanup
+- Performance optimization
+- Disaster recovery preparation
+
+Best Practices:
+- Use appropriate TTL values for data freshness
+- Implement cache warming strategies for critical data
+- Monitor cache hit ratios and adjust strategies
+- Use pattern-based operations carefully (performance impact)
+- Implement proper error handling and fallback mechanisms
+- Regular cache statistics collection for optimization
+- Backup critical cache data for disaster recovery
+- Use compression for large cache values
+- Implement cache invalidation strategies for data consistency
+
+Security Considerations:
+- Encrypt sensitive cached data
+- Secure cache access with authentication
+- Implement proper access controls
+- Monitor cache access patterns
+- Audit cache operations for compliance
+- Secure backup and restore operations
+
+================================================================================

@@ -1,0 +1,581 @@
+================================================================================
+                          DUMMY JOB TYPE - CURL EXAMPLES
+================================================================================
+
+# Authentication Token (use for all requests)
+TOKEN="eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJyZXRyeUB0ZXN0LmNvbSIsImlhdCI6MTc1ODM3MjU1NCwiZXhwIjoxNzU4NDU4OTU0fQ.Me91m3fwqVZ7eGHYBhScCCXAoj6o6BtCM0BZaxRnSVY"
+
+================================================================================
+1. SIMPLE SUCCESS DUMMY JOB - BASIC TEST
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Simple Success Test",
+    "type": "DUMMY",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:20:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "DUMMY",
+      "metadata": {
+        "testType": "success",
+        "description": "Basic success test job",
+        "expectedOutcome": "SUCCESS"
+      }
+    }
+  }'
+
+================================================================================
+2. DUMMY JOB WITH SIMULATED DELAY - PERFORMANCE TEST
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Performance Test with Delay",
+    "type": "DUMMY",
+    "priority": "LOW",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:21:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "DUMMY",
+      "metadata": {
+        "testType": "performance",
+        "simulatedDelaySeconds": 5,
+        "description": "Test job with 5 second delay",
+        "expectedDuration": "5000ms"
+      }
+    }
+  }'
+
+================================================================================
+3. DUMMY FAILURE JOB - ERROR TESTING
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Simulated Failure Test",
+    "type": "DUMMY",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:22:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 2,
+      "retryOn": ["DUMMY_ERROR", "SIMULATION_ERROR"]
+    },
+    "payload": {
+      "type": "DUMMY",
+      "metadata": {
+        "testType": "failure",
+        "simulateFailure": true,
+        "failureMessage": "Simulated error for testing",
+        "description": "Test job that always fails"
+      }
+    }
+  }'
+
+================================================================================
+4. RANDOM SUCCESS/FAILURE DUMMY JOB - CHAOS TESTING
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Random Outcome Test",
+    "type": "DUMMY",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:23:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 5,
+      "retryOn": ["DUMMY_ERROR", "RANDOM_ERROR"]
+    },
+    "payload": {
+      "type": "DUMMY",
+      "metadata": {
+        "testType": "random",
+        "successProbability": 0.7,
+        "description": "70% chance of success, 30% chance of failure",
+        "chaosEngineering": true
+      }
+    }
+  }'
+
+================================================================================
+5. RECURRING DUMMY JOB - CRON SCHEDULE TESTING
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Recurring Health Check Dummy",
+    "type": "DUMMY",
+    "priority": "LOW",
+    "schedule": {
+      "scheduleType": "CRON",
+      "cronExpression": "0 */2 * * * ?",
+      "timezone": "UTC",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "DUMMY",
+      "metadata": {
+        "testType": "health_check",
+        "description": "Recurring dummy job every 2 minutes",
+        "healthCheckType": "system_heartbeat",
+        "generateMetrics": true
+      }
+    }
+  }'
+
+================================================================================
+6. LOAD TESTING DUMMY JOB - HIGH FREQUENCY
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Load Test Dummy Job",
+    "type": "DUMMY",
+    "priority": "CRITICAL",
+    "schedule": {
+      "scheduleType": "INTERVAL",
+      "intervalSeconds": 10,
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "DUMMY",
+      "metadata": {
+        "testType": "load_test",
+        "description": "High frequency dummy job for load testing",
+        "simulatedDelaySeconds": 1,
+        "loadTestId": "load-test-001",
+        "expectedThroughput": "6 jobs/minute"
+      }
+    }
+  }'
+
+================================================================================
+7. MEMORY USAGE SIMULATION DUMMY JOB
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Memory Usage Simulation",
+    "type": "DUMMY",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:25:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 10,
+      "retryOn": ["MEMORY_ERROR", "RESOURCE_ERROR"]
+    },
+    "payload": {
+      "type": "DUMMY",
+      "metadata": {
+        "testType": "memory_simulation",
+        "simulatedMemoryUsageMB": 50,
+        "description": "Simulate memory usage for testing",
+        "holdMemorySeconds": 3,
+        "memoryPattern": "gradual_increase"
+      }
+    }
+  }'
+
+================================================================================
+8. CPU INTENSIVE DUMMY JOB - RESOURCE TESTING
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "CPU Intensive Simulation",
+    "type": "DUMMY",
+    "priority": "LOW",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:26:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "DUMMY",
+      "metadata": {
+        "testType": "cpu_intensive",
+        "description": "Simulate CPU intensive operations",
+        "simulatedCpuWorkSeconds": 8,
+        "cpuIntensity": "high",
+        "workloadType": "mathematical_computation"
+      }
+    }
+  }'
+
+================================================================================
+9. NETWORK SIMULATION DUMMY JOB - CONNECTIVITY TEST
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Network Connectivity Simulation",
+    "type": "DUMMY",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:27:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 5,
+      "retryOn": ["NETWORK_ERROR", "TIMEOUT", "CONNECTION_ERROR"]
+    },
+    "payload": {
+      "type": "DUMMY",
+      "metadata": {
+        "testType": "network_simulation",
+        "description": "Simulate network operations and latency",
+        "simulatedLatencyMs": 200,
+        "networkOperationType": "api_call",
+        "simulateNetworkFailure": false
+      }
+    }
+  }'
+
+================================================================================
+10. DATABASE SIMULATION DUMMY JOB - DB TESTING
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Database Operation Simulation",
+    "type": "DUMMY",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:28:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 8,
+      "retryOn": ["DATABASE_ERROR", "CONNECTION_ERROR", "TIMEOUT"]
+    },
+    "payload": {
+      "type": "DUMMY",
+      "metadata": {
+        "testType": "database_simulation",
+        "description": "Simulate database operations",
+        "operationType": "complex_query",
+        "simulatedQueryTimeMs": 1500,
+        "recordCount": 10000,
+        "simulateDbFailure": false
+      }
+    }
+  }'
+
+================================================================================
+11. BATCH PROCESSING SIMULATION DUMMY JOB
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Batch Processing Simulation",
+    "type": "DUMMY",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:30:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "DUMMY",
+      "metadata": {
+        "testType": "batch_processing",
+        "description": "Simulate batch data processing",
+        "batchSize": 1000,
+        "totalRecords": 10000,
+        "processingTimePerBatchMs": 500,
+        "simulateProgressReporting": true
+      }
+    }
+  }'
+
+================================================================================
+12. CONCURRENT EXECUTION TEST DUMMY JOB
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Concurrent Execution Test 1",
+    "type": "DUMMY",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:32:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "DUMMY",
+      "metadata": {
+        "testType": "concurrency_test",
+        "description": "Test concurrent job execution",
+        "simulatedDelaySeconds": 10,
+        "concurrencyGroup": "group-A",
+        "testConcurrentExecution": true
+      }
+    }
+  }'
+
+================================================================================
+13. SECOND CONCURRENT EXECUTION TEST DUMMY JOB
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Concurrent Execution Test 2",
+    "type": "DUMMY",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:32:05Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "DUMMY",
+      "metadata": {
+        "testType": "concurrency_test",
+        "description": "Test concurrent job execution",
+        "simulatedDelaySeconds": 8,
+        "concurrencyGroup": "group-A",
+        "testConcurrentExecution": true
+      }
+    }
+  }'
+
+================================================================================
+14. TIMEOUT SIMULATION DUMMY JOB
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Timeout Simulation Test",
+    "type": "DUMMY",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:33:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 15,
+      "retryOn": ["TIMEOUT", "EXECUTION_ERROR"]
+    },
+    "payload": {
+      "type": "DUMMY",
+      "metadata": {
+        "testType": "timeout_simulation",
+        "description": "Simulate job timeout scenarios",
+        "simulatedDelaySeconds": 300,
+        "simulateTimeout": true,
+        "timeoutAfterSeconds": 30
+      }
+    }
+  }'
+
+================================================================================
+15. METRICS COLLECTION DUMMY JOB
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Metrics Collection Test",
+    "type": "DUMMY",
+    "priority": "LOW",
+    "schedule": {
+      "scheduleType": "CRON",
+      "cronExpression": "0 */5 * * * ?",
+      "timezone": "UTC",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "DUMMY",
+      "metadata": {
+        "testType": "metrics_collection",
+        "description": "Generate metrics for monitoring dashboard",
+        "generateCustomMetrics": true,
+        "metricsType": "performance_indicators",
+        "simulatedMetrics": {
+          "throughput": "random(100,500)",
+          "latency": "random(50,200)",
+          "errorRate": "random(0,5)"
+        }
+      }
+    }
+  }'
+
+================================================================================
+                              NOTES
+================================================================================
+
+Dummy Job Payload Fields:
+- metadata (optional): Key-value pairs for test configuration and simulation parameters
+
+Common Metadata Parameters:
+
+Test Types:
+- success: Always succeeds (default behavior)
+- failure: Always fails for error testing
+- random: Random success/failure based on probability
+- performance: Performance and load testing
+- health_check: System health monitoring
+- load_test: High-frequency execution testing
+- memory_simulation: Memory usage simulation
+- cpu_intensive: CPU resource testing
+- network_simulation: Network connectivity testing
+- database_simulation: Database operation testing
+- batch_processing: Batch job simulation
+- concurrency_test: Concurrent execution testing
+- timeout_simulation: Timeout scenario testing
+- metrics_collection: Metrics generation for monitoring
+
+Simulation Parameters:
+- simulatedDelaySeconds: Add artificial delay to job execution
+- simulateFailure: Force job to fail for testing
+- failureMessage: Custom error message for failed jobs
+- successProbability: Probability of success (0.0 to 1.0)
+- simulatedMemoryUsageMB: Simulate memory consumption
+- simulatedCpuWorkSeconds: Simulate CPU intensive work
+- simulatedLatencyMs: Simulate network latency
+- simulatedQueryTimeMs: Simulate database query time
+
+Use Cases for Dummy Jobs:
+
+1. System Testing:
+   - Validate job scheduling functionality
+   - Test retry policies and error handling
+   - Verify job lifecycle management
+   - Test concurrent job execution
+
+2. Performance Testing:
+   - Load testing with high-frequency jobs
+   - Stress testing system resources
+   - Throughput and latency measurement
+   - Scalability testing
+
+3. Monitoring and Alerting:
+   - Health check jobs for system monitoring
+   - Generate test metrics for dashboards
+   - Test notification systems
+   - Validate monitoring thresholds
+
+4. Development and Debugging:
+   - Test new features without side effects
+   - Debug job execution flow
+   - Validate configuration changes
+   - Test deployment procedures
+
+5. Chaos Engineering:
+   - Random failure injection
+   - Resource exhaustion simulation
+   - Network partition simulation
+   - Database failure scenarios
+
+6. Integration Testing:
+   - Test job scheduler integration
+   - Validate metrics collection
+   - Test audit logging
+   - Verify security controls
+
+Best Practices:
+- Use descriptive names for test identification
+- Include test type and description in metadata
+- Set appropriate priorities for test jobs
+- Use retry policies to test error handling
+- Clean up test jobs after completion
+- Monitor resource usage during testing
+- Use different schedules for various test scenarios
+
+Error Simulation Types:
+- DUMMY_ERROR: General dummy job errors
+- SIMULATION_ERROR: Simulation-specific errors
+- RANDOM_ERROR: Random failure scenarios
+- MEMORY_ERROR: Memory-related failures
+- RESOURCE_ERROR: Resource exhaustion errors
+- NETWORK_ERROR: Network connectivity issues
+- DATABASE_ERROR: Database operation failures
+- TIMEOUT: Execution timeout scenarios
+- EXECUTION_ERROR: General execution failures
+
+Monitoring Dummy Jobs:
+- Track execution success/failure rates
+- Monitor execution duration and performance
+- Analyze retry patterns and backoff behavior
+- Measure system resource utilization
+- Validate metrics generation and collection
+- Test alerting and notification systems
+
+Security Considerations:
+- Dummy jobs should not access sensitive data
+- Limit resource consumption to prevent system impact
+- Use appropriate permissions and access controls
+- Monitor for excessive dummy job creation
+- Implement cleanup procedures for test jobs
+
+Performance Impact:
+- Dummy jobs consume minimal system resources
+- Simulation parameters can increase resource usage
+- High-frequency dummy jobs may impact system performance
+- Monitor system metrics during load testing
+- Implement rate limiting for test job creation
+
+================================================================================

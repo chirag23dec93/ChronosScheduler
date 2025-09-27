@@ -1,0 +1,550 @@
+================================================================================
+                       DB_TO_KAFKA JOB TYPE - CURL EXAMPLES
+================================================================================
+
+# Authentication Token (use for all requests)
+TOKEN="eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJyZXRyeUB0ZXN0LmNvbSIsImlhdCI6MTc1ODM3MjU1NCwiZXhwIjoxNzU4NDU4OTU0fQ.Me91m3fwqVZ7eGHYBhScCCXAoj6o6BtCM0BZaxRnSVY"
+
+================================================================================
+1. SIMPLE DB TO KAFKA STREAMING - BASIC SETUP
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Simple DB to Kafka Stream",
+    "type": "DB_TO_KAFKA",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:15:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "DB_TO_KAFKA",
+      "databaseUrl": "jdbc:mysql://mysql:3306/chronos_db?user=chronos_user1&password=StrongPassword123!",
+      "query": "SELECT id, name, type, status FROM jobs ORDER BY created_at DESC LIMIT 10",
+      "kafkaTopic": "chronos-jobs-stream",
+      "kafkaKeyField": "id",
+      "batchSize": 5,
+      "includeMetadata": true
+    }
+  }'
+
+================================================================================
+2. INCREMENTAL DATA STREAMING - WITH OFFSET TRACKING
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Incremental Job Data Stream",
+    "type": "DB_TO_KAFKA",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:16:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 10,
+      "retryOn": ["DATABASE_ERROR", "CONNECTION_ERROR", "KAFKA_ERROR"]
+    },
+    "payload": {
+      "type": "DB_TO_KAFKA",
+      "databaseUrl": "jdbc:mysql://mysql:3306/chronos_db?user=chronos_user1&password=StrongPassword123!",
+      "query": "SELECT id, name, type, status, created_at FROM jobs WHERE created_at > ? ORDER BY created_at ASC",
+      "kafkaTopic": "job-updates",
+      "kafkaKeyField": "id",
+      "offsetField": "created_at",
+      "lastProcessedValue": "2025-09-20 00:00:00",
+      "batchSize": 20,
+      "maxRecords": 1000,
+      "includeMetadata": true,
+      "skipOnError": false
+    }
+  }'
+
+================================================================================
+3. RECURRING DATA SYNC - CRON SCHEDULE WITH FIELD MAPPING
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Hourly Job Status Sync",
+    "type": "DB_TO_KAFKA",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "CRON",
+      "cronExpression": "0 0 * * * ?",
+      "timezone": "UTC",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 4,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 15,
+      "retryOn": ["DATABASE_ERROR", "CONNECTION_ERROR", "KAFKA_ERROR", "TIMEOUT"]
+    },
+    "payload": {
+      "type": "DB_TO_KAFKA",
+      "databaseUrl": "jdbc:mysql://mysql:3306/chronos_db?user=chronos_user1&password=StrongPassword123!",
+      "query": "SELECT j.id, j.name, j.type, j.status, j.priority, j.created_at, u.email as owner_email FROM jobs j JOIN users u ON j.owner_id = u.id WHERE j.created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)",
+      "kafkaTopic": "job-status-updates",
+      "kafkaKeyField": "id",
+      "kafkaHeaders": {
+        "source": "chronos-scheduler",
+        "sync-type": "hourly",
+        "version": "1.0"
+      },
+      "fieldMappings": {
+        "created_at": "job_created_timestamp",
+        "owner_email": "job_owner"
+      },
+      "batchSize": 50,
+      "includeMetadata": true,
+      "connectionTimeoutSeconds": 60
+    }
+  }'
+
+================================================================================
+4. HIGH-VOLUME DATA STREAMING - OPTIMIZED FOR PERFORMANCE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "High Volume Job Runs Stream",
+    "type": "DB_TO_KAFKA",
+    "priority": "CRITICAL",
+    "schedule": {
+      "scheduleType": "INTERVAL",
+      "intervalSeconds": 300,
+      "misfirePolicy": "RESCHEDULE"
+    },
+    "retryPolicy": {
+      "maxAttempts": 5,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 5,
+      "retryOn": ["DATABASE_ERROR", "CONNECTION_ERROR", "KAFKA_ERROR", "TIMEOUT"]
+    },
+    "payload": {
+      "type": "DB_TO_KAFKA",
+      "databaseUrl": "jdbc:mysql://mysql:3306/chronos_db?user=chronos_user1&password=StrongPassword123!",
+      "query": "SELECT jr.id, jr.job_id, jr.scheduled_time, jr.start_time, jr.end_time, jr.attempt, jr.outcome, jr.duration_ms, j.name as job_name, j.type as job_type FROM job_runs jr JOIN jobs j ON jr.job_id = j.id WHERE jr.start_time > ? ORDER BY jr.start_time ASC",
+      "kafkaTopic": "job-execution-events",
+      "kafkaKeyField": "id",
+      "offsetField": "start_time",
+      "lastProcessedValue": "2025-09-20 15:00:00",
+      "batchSize": 100,
+      "maxRecords": 10000,
+      "includeMetadata": true,
+      "skipOnError": true,
+      "connectionTimeoutSeconds": 120,
+      "maxRetries": 3
+    }
+  }'
+
+================================================================================
+5. CROSS-DATABASE STREAMING - POSTGRESQL TO KAFKA
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "PostgreSQL Customer Data Stream",
+    "type": "DB_TO_KAFKA",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:20:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 30,
+      "retryOn": ["DATABASE_ERROR", "CONNECTION_ERROR", "KAFKA_ERROR"]
+    },
+    "payload": {
+      "type": "DB_TO_KAFKA",
+      "databaseUrl": "jdbc:postgresql://external-db:5432/customers_db?user=readonly_user&password=SecurePass456!",
+      "query": "SELECT customer_id, customer_name, email, phone, address, created_at, updated_at FROM customers WHERE updated_at > ? ORDER BY updated_at ASC",
+      "kafkaTopic": "customer-updates",
+      "kafkaKeyField": "customer_id",
+      "offsetField": "updated_at",
+      "lastProcessedValue": "2025-09-20 00:00:00",
+      "kafkaHeaders": {
+        "source-db": "postgresql",
+        "table": "customers",
+        "sync-job": "customer-sync"
+      },
+      "fieldMappings": {
+        "customer_id": "id",
+        "customer_name": "name",
+        "created_at": "registration_date",
+        "updated_at": "last_modified"
+      },
+      "excludeFields": ["phone", "address"],
+      "batchSize": 25,
+      "includeMetadata": true,
+      "skipOnError": false,
+      "connectionTimeoutSeconds": 90
+    }
+  }'
+
+================================================================================
+6. ERROR HANDLING WITH DEAD LETTER QUEUE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Audit Events Stream with DLQ",
+    "type": "DB_TO_KAFKA",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:22:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 4,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 8,
+      "retryOn": ["DATABASE_ERROR", "CONNECTION_ERROR", "KAFKA_ERROR", "SERIALIZATION_ERROR"]
+    },
+    "payload": {
+      "type": "DB_TO_KAFKA",
+      "databaseUrl": "jdbc:mysql://mysql:3306/chronos_db?user=chronos_user1&password=StrongPassword123!",
+      "query": "SELECT ae.id, ae.user_id, ae.action, ae.entity_type, ae.entity_id, ae.created_at, ae.details, u.email as user_email FROM audit_events ae LEFT JOIN users u ON ae.user_id = u.id WHERE ae.created_at > ? ORDER BY ae.created_at ASC",
+      "kafkaTopic": "audit-events-stream",
+      "kafkaKeyField": "id",
+      "offsetField": "created_at",
+      "lastProcessedValue": "2025-09-20 12:00:00",
+      "deadLetterTopic": "audit-events-dlq",
+      "kafkaHeaders": {
+        "content-type": "application/json",
+        "source": "chronos-audit"
+      },
+      "fieldMappings": {
+        "created_at": "event_timestamp",
+        "user_email": "actor_email"
+      },
+      "batchSize": 30,
+      "maxRecords": 5000,
+      "includeMetadata": true,
+      "skipOnError": true,
+      "maxRetries": 2,
+      "connectionTimeoutSeconds": 45
+    }
+  }'
+
+================================================================================
+7. FILTERED DATA STREAMING - COMPLEX WHERE CLAUSE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Failed Jobs Analysis Stream",
+    "type": "DB_TO_KAFKA",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "CRON",
+      "cronExpression": "0 */15 * * * ?",
+      "timezone": "UTC",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 12,
+      "retryOn": ["DATABASE_ERROR", "CONNECTION_ERROR", "KAFKA_ERROR"]
+    },
+    "payload": {
+      "type": "DB_TO_KAFKA",
+      "databaseUrl": "jdbc:mysql://mysql:3306/chronos_db?user=chronos_user1&password=StrongPassword123!",
+      "query": "SELECT j.id, j.name, j.type, jr.outcome, jr.error_message, jr.attempt, jr.start_time, jr.end_time, jr.duration_ms FROM jobs j JOIN job_runs jr ON j.id = jr.job_id WHERE jr.outcome = \"FAILURE\" AND jr.start_time >= DATE_SUB(NOW(), INTERVAL 15 MINUTE) ORDER BY jr.start_time ASC",
+      "kafkaTopic": "failed-job-analysis",
+      "kafkaKeyField": "id",
+      "kafkaHeaders": {
+        "analysis-type": "failure",
+        "time-window": "15min",
+        "priority": "high"
+      },
+      "fieldMappings": {
+        "start_time": "failure_timestamp",
+        "error_message": "failure_reason",
+        "duration_ms": "execution_time_ms"
+      },
+      "batchSize": 15,
+      "includeMetadata": true,
+      "skipOnError": false,
+      "connectionTimeoutSeconds": 60
+    }
+  }'
+
+================================================================================
+8. LARGE DATASET STREAMING - SQL SERVER SOURCE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "SQL Server Orders Stream",
+    "type": "DB_TO_KAFKA",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:25:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 5,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 20,
+      "retryOn": ["DATABASE_ERROR", "CONNECTION_ERROR", "KAFKA_ERROR", "TIMEOUT"]
+    },
+    "payload": {
+      "type": "DB_TO_KAFKA",
+      "databaseUrl": "jdbc:sqlserver://sqlserver:1433;databaseName=OrdersDB;user=sa;password=SqlServer123!",
+      "query": "SELECT TOP 1000 OrderID, CustomerID, OrderDate, ShipDate, Freight, ShipCountry FROM Orders WHERE OrderDate >= ? ORDER BY OrderDate ASC",
+      "kafkaTopic": "orders-stream",
+      "kafkaKeyField": "OrderID",
+      "offsetField": "OrderDate",
+      "lastProcessedValue": "2025-01-01",
+      "kafkaHeaders": {
+        "source-system": "sqlserver",
+        "table": "Orders",
+        "region": "global"
+      },
+      "fieldMappings": {
+        "OrderID": "order_id",
+        "CustomerID": "customer_id",
+        "OrderDate": "order_timestamp",
+        "ShipDate": "shipping_timestamp",
+        "ShipCountry": "destination_country"
+      },
+      "batchSize": 50,
+      "maxRecords": 1000,
+      "includeMetadata": true,
+      "skipOnError": true,
+      "connectionTimeoutSeconds": 180,
+      "maxRetries": 3
+    }
+  }'
+
+================================================================================
+9. REAL-TIME CDC SIMULATION - ORACLE SOURCE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Oracle Employee CDC Stream",
+    "type": "DB_TO_KAFKA",
+    "priority": "CRITICAL",
+    "schedule": {
+      "scheduleType": "INTERVAL",
+      "intervalSeconds": 60,
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 4,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 10,
+      "retryOn": ["DATABASE_ERROR", "CONNECTION_ERROR", "KAFKA_ERROR", "TIMEOUT"]
+    },
+    "payload": {
+      "type": "DB_TO_KAFKA",
+      "databaseUrl": "jdbc:oracle:thin:@oracle-server:1521:XE?user=hr&password=OraclePass123!",
+      "query": "SELECT EMPLOYEE_ID, FIRST_NAME, LAST_NAME, EMAIL, PHONE_NUMBER, HIRE_DATE, JOB_ID, SALARY, DEPARTMENT_ID, LAST_MODIFIED FROM EMPLOYEES WHERE LAST_MODIFIED > TO_TIMESTAMP(?, \"YYYY-MM-DD HH24:MI:SS\") ORDER BY LAST_MODIFIED ASC",
+      "kafkaTopic": "employee-changes",
+      "kafkaKeyField": "EMPLOYEE_ID",
+      "offsetField": "LAST_MODIFIED",
+      "lastProcessedValue": "2025-09-20 15:00:00",
+      "kafkaHeaders": {
+        "cdc-type": "employee",
+        "source-db": "oracle",
+        "change-capture": "timestamp"
+      },
+      "fieldMappings": {
+        "EMPLOYEE_ID": "employee_id",
+        "FIRST_NAME": "first_name",
+        "LAST_NAME": "last_name",
+        "PHONE_NUMBER": "phone",
+        "HIRE_DATE": "hired_date",
+        "JOB_ID": "position_code",
+        "DEPARTMENT_ID": "dept_id",
+        "LAST_MODIFIED": "change_timestamp"
+      },
+      "excludeFields": ["SALARY"],
+      "batchSize": 20,
+      "maxRecords": 500,
+      "includeMetadata": true,
+      "skipOnError": false,
+      "connectionTimeoutSeconds": 120,
+      "maxRetries": 2
+    }
+  }'
+
+================================================================================
+10. MULTI-TABLE JOIN STREAMING - COMPLEX ANALYTICS
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Job Performance Analytics Stream",
+    "type": "DB_TO_KAFKA",
+    "priority": "LOW",
+    "schedule": {
+      "scheduleType": "CRON",
+      "cronExpression": "0 30 * * * ?",
+      "timezone": "UTC",
+      "misfirePolicy": "RESCHEDULE"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 45,
+      "retryOn": ["DATABASE_ERROR", "CONNECTION_ERROR", "KAFKA_ERROR"]
+    },
+    "payload": {
+      "type": "DB_TO_KAFKA",
+      "databaseUrl": "jdbc:mysql://mysql:3306/chronos_db?user=chronos_user1&password=StrongPassword123!",
+      "query": "SELECT j.id as job_id, j.name as job_name, j.type as job_type, j.priority, COUNT(jr.id) as total_runs, AVG(jr.duration_ms) as avg_duration, SUM(CASE WHEN jr.outcome = \"SUCCESS\" THEN 1 ELSE 0 END) as success_count, SUM(CASE WHEN jr.outcome = \"FAILURE\" THEN 1 ELSE 0 END) as failure_count, MAX(jr.start_time) as last_run_time FROM jobs j LEFT JOIN job_runs jr ON j.id = jr.job_id WHERE j.created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) GROUP BY j.id, j.name, j.type, j.priority HAVING COUNT(jr.id) > 0 ORDER BY avg_duration DESC",
+      "kafkaTopic": "job-performance-analytics",
+      "kafkaKeyField": "job_id",
+      "kafkaHeaders": {
+        "analytics-type": "performance",
+        "aggregation": "hourly",
+        "metrics": "duration,success_rate"
+      },
+      "fieldMappings": {
+        "avg_duration": "average_execution_time_ms",
+        "success_count": "successful_executions",
+        "failure_count": "failed_executions",
+        "last_run_time": "most_recent_execution"
+      },
+      "batchSize": 10,
+      "maxRecords": 100,
+      "includeMetadata": true,
+      "skipOnError": true,
+      "connectionTimeoutSeconds": 90
+    }
+  }'
+
+================================================================================
+                              NOTES
+================================================================================
+
+DB_TO_KAFKA Job Payload Fields:
+- databaseUrl (required): JDBC connection string with credentials
+- query (required): SQL SELECT query to stream data
+- kafkaTopic (required): Target Kafka topic name
+- kafkaKeyField (optional): Field to use as Kafka message key
+- kafkaHeaders (optional): Static headers to add to Kafka messages
+- offsetField (optional): Field for incremental processing tracking
+- lastProcessedValue (optional): Last processed offset value
+- fieldMappings (optional): Map database fields to different names
+- excludeFields (optional): Fields to exclude from streaming
+- includeMetadata (optional): Include job metadata in messages
+- deadLetterTopic (optional): Topic for failed message processing
+- skipOnError (optional): Continue processing on individual record errors
+- batchSize (optional): Number of records to process per batch
+- maxRecords (optional): Maximum records to process per execution
+- maxRetries (optional): Maximum retries for failed records
+- connectionTimeoutSeconds (optional): Database connection timeout
+
+Supported Database Sources:
+- MySQL: jdbc:mysql://host:port/database?user=u&password=p
+- PostgreSQL: jdbc:postgresql://host:port/database?user=u&password=p
+- SQL Server: jdbc:sqlserver://host:port;databaseName=db;user=u;password=p
+- Oracle: jdbc:oracle:thin:@host:port:sid?user=u&password=p
+- H2: jdbc:h2:mem:testdb or jdbc:h2:file:./data/db
+
+Kafka Integration Features:
+- Real-time message production via KafkaTemplate
+- Configurable message keys for partitioning
+- Custom headers for message routing and filtering
+- Batch processing for optimal throughput
+- Dead Letter Queue support for error handling
+- Transactional message production (planned)
+
+Data Processing Capabilities:
+- Incremental processing with offset tracking
+- Field mapping and transformation
+- Field exclusion for sensitive data
+- Metadata injection (job context, timestamps)
+- Batch size optimization for performance
+- Error handling with skip-on-error mode
+
+Error Handling & Retry:
+- Comprehensive retry logic for transient failures
+- Dead Letter Queue for permanently failed messages
+- Skip-on-error mode for fault tolerance
+- Detailed error logging and tracking
+- Connection timeout management
+- SQL injection prevention (SELECT queries only)
+
+Performance Optimization:
+- Streaming ResultSet processing for large datasets
+- Configurable batch sizes for memory management
+- Connection pooling via DatabaseJobDataSourceFactory
+- Offset tracking to prevent duplicate processing
+- Maximum record limits for execution control
+- Connection timeout configuration
+
+Security Considerations:
+- SQL injection prevention (only SELECT queries allowed)
+- Database credentials in JDBC URL
+- Read-only database access recommended
+- Field exclusion for sensitive data
+- Connection timeout limits
+- Proper error message sanitization
+
+Monitoring & Observability:
+- Comprehensive execution logging
+- Success/failure metrics collection
+- Processing duration tracking
+- Record count monitoring
+- Error rate tracking
+- Kafka producer metrics
+
+Use Cases:
+- Real-time data synchronization
+- Change Data Capture (CDC) simulation
+- Analytics data streaming
+- Audit log streaming
+- Performance monitoring data
+- Cross-system data integration
+- Event sourcing data streams
+- Backup and archival processes
+
+Best Practices:
+- Use incremental processing with offset fields
+- Set appropriate batch sizes (10-100 records)
+- Configure dead letter queues for error handling
+- Use field mappings for schema evolution
+- Monitor Kafka topic partitions and consumer lag
+- Set connection timeouts to prevent hanging
+- Use read-only database users
+- Test queries with LIMIT clauses first
+- Monitor database connection pool usage
+
+================================================================================

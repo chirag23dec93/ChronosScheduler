@@ -1,0 +1,464 @@
+================================================================================
+                         DATABASE JOB TYPE - CURL EXAMPLES
+================================================================================
+
+# Authentication Token (use for all requests)
+TOKEN="eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJyZXRyeUB0ZXN0LmNvbSIsImlhdCI6MTc1ODM3MjU1NCwiZXhwIjoxNzU4NDU4OTU0fQ.Me91m3fwqVZ7eGHYBhScCCXAoj6o6BtCM0BZaxRnSVY"
+
+================================================================================
+1. SIMPLE SELECT QUERY - READ ONLY
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Count Users Query",
+    "type": "DATABASE",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:10:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "DATABASE",
+      "query": "SELECT COUNT(*) as user_count FROM users",
+      "databaseUrl": "jdbc:mysql://mysql:3306/chronos_db?user=chronos_user1&password=StrongPassword123!",
+      "parameters": {},
+      "queryTimeoutSeconds": 30,
+      "maxRows": 1000,
+      "readOnly": true
+    }
+  }'
+
+================================================================================
+2. PARAMETERIZED QUERY WITH RETRY POLICY
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Find Jobs by Status",
+    "type": "DATABASE",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:11:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 10,
+      "retryOn": ["DATABASE_ERROR", "TIMEOUT", "CONNECTION_ERROR"]
+    },
+    "payload": {
+      "type": "DATABASE",
+      "query": "SELECT id, name, status, created_at FROM jobs WHERE status = ? AND created_at > ?",
+      "databaseUrl": "jdbc:mysql://mysql:3306/chronos_db?user=chronos_user1&password=StrongPassword123!",
+      "parameters": {
+        "status": "SCHEDULED",
+        "created_at": "2025-09-20 00:00:00"
+      },
+      "queryTimeoutSeconds": 45,
+      "maxRows": 100,
+      "readOnly": true
+    }
+  }'
+
+================================================================================
+3. COMPLEX JOIN QUERY - REPORTING
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Job Execution Report",
+    "type": "DATABASE",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:12:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "DATABASE",
+      "query": "SELECT j.name, j.status, jr.outcome, jr.start_time, jr.end_time, jr.duration_ms FROM jobs j LEFT JOIN job_runs jr ON j.id = jr.job_id WHERE j.created_at >= ? ORDER BY j.created_at DESC",
+      "databaseUrl": "jdbc:mysql://mysql:3306/chronos_db?user=chronos_user1&password=StrongPassword123!",
+      "parameters": {
+        "start_date": "2025-09-20"
+      },
+      "queryTimeoutSeconds": 60,
+      "maxRows": 500,
+      "readOnly": true
+    }
+  }'
+
+================================================================================
+4. RECURRING DATABASE REPORT - CRON SCHEDULE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Daily Job Statistics",
+    "type": "DATABASE",
+    "priority": "LOW",
+    "schedule": {
+      "scheduleType": "CRON",
+      "cronExpression": "0 0 9 * * ?",
+      "timezone": "UTC",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 30,
+      "retryOn": ["DATABASE_ERROR", "TIMEOUT", "CONNECTION_ERROR"]
+    },
+    "payload": {
+      "type": "DATABASE",
+      "query": "SELECT DATE(created_at) as date, COUNT(*) as total_jobs, SUM(CASE WHEN status = \"SUCCEEDED\" THEN 1 ELSE 0 END) as successful_jobs, SUM(CASE WHEN status = \"FAILED\" THEN 1 ELSE 0 END) as failed_jobs FROM jobs WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) GROUP BY DATE(created_at) ORDER BY date DESC",
+      "databaseUrl": "jdbc:mysql://mysql:3306/chronos_db?user=chronos_user1&password=StrongPassword123!",
+      "parameters": {},
+      "queryTimeoutSeconds": 120,
+      "maxRows": 1000,
+      "readOnly": true
+    }
+  }'
+
+================================================================================
+5. DATABASE MAINTENANCE - WRITE OPERATION
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Cleanup Old Job Logs",
+    "type": "DATABASE",
+    "priority": "LOW",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:15:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 60,
+      "retryOn": ["DATABASE_ERROR", "TIMEOUT"]
+    },
+    "payload": {
+      "type": "DATABASE",
+      "query": "DELETE FROM job_run_logs WHERE timestamp < DATE_SUB(NOW(), INTERVAL ? DAY)",
+      "databaseUrl": "jdbc:mysql://mysql:3306/chronos_db?user=chronos_user1&password=StrongPassword123!",
+      "parameters": {
+        "days": 30
+      },
+      "queryTimeoutSeconds": 300,
+      "readOnly": false,
+      "transactionIsolation": "READ_COMMITTED"
+    }
+  }'
+
+================================================================================
+6. DATABASE HEALTH CHECK - INTERVAL SCHEDULE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Database Health Check",
+    "type": "DATABASE",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "INTERVAL",
+      "intervalSeconds": 300,
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 5,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 5,
+      "retryOn": ["DATABASE_ERROR", "TIMEOUT", "CONNECTION_ERROR"]
+    },
+    "payload": {
+      "type": "DATABASE",
+      "query": "SELECT 1 as health_check, NOW() as current_time, CONNECTION_ID() as connection_id",
+      "databaseUrl": "jdbc:mysql://mysql:3306/chronos_db?user=chronos_user1&password=StrongPassword123!",
+      "parameters": {},
+      "queryTimeoutSeconds": 10,
+      "maxRows": 1,
+      "readOnly": true
+    }
+  }'
+
+================================================================================
+7. EXTERNAL DATABASE CONNECTION - POSTGRESQL
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "External PostgreSQL Query",
+    "type": "DATABASE",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:20:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 5,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 10,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "DATABASE_ERROR"]
+    },
+    "payload": {
+      "type": "DATABASE",
+      "query": "SELECT customer_id, customer_name, last_updated FROM customers WHERE last_updated > ?",
+      "databaseUrl": "jdbc:postgresql://external-db:5432/production_db?user=readonly_user&password=SecurePass456!",
+      "parameters": {
+        "last_sync": "2025-09-20 00:00:00"
+      },
+      "queryTimeoutSeconds": 180,
+      "maxRows": 10000,
+      "readOnly": true,
+      "transactionIsolation": "READ_COMMITTED"
+    }
+  }'
+
+================================================================================
+8. AGGREGATION QUERY - PERFORMANCE ANALYTICS
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Performance Analytics Query",
+    "type": "DATABASE",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:25:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "DATABASE",
+      "query": "SELECT job_type, AVG(duration_ms) as avg_duration, MIN(duration_ms) as min_duration, MAX(duration_ms) as max_duration, COUNT(*) as total_runs FROM (SELECT j.type as job_type, jr.duration_ms FROM jobs j JOIN job_runs jr ON j.id = jr.job_id WHERE jr.outcome = ? AND jr.start_time BETWEEN ? AND ?) AS job_stats GROUP BY job_type ORDER BY avg_duration DESC",
+      "databaseUrl": "jdbc:mysql://mysql:3306/chronos_db?user=chronos_user1&password=StrongPassword123!",
+      "parameters": {
+        "outcome": "SUCCESS",
+        "start_date": "2025-09-19 00:00:00",
+        "end_date": "2025-09-20 23:59:59"
+      },
+      "queryTimeoutSeconds": 90,
+      "maxRows": 50,
+      "readOnly": true
+    }
+  }'
+
+================================================================================
+9. UPDATE OPERATION WITH TRANSACTION ISOLATION
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Update Job Priorities",
+    "type": "DATABASE",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:30:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 30,
+      "retryOn": ["DATABASE_ERROR", "TIMEOUT"]
+    },
+    "payload": {
+      "type": "DATABASE",
+      "query": "UPDATE jobs SET priority = ? WHERE type = ? AND status = ?",
+      "databaseUrl": "jdbc:mysql://mysql:3306/chronos_db?user=chronos_user1&password=StrongPassword123!",
+      "parameters": {
+        "priority": "HIGH",
+        "type": "HTTP",
+        "status": "SCHEDULED"
+      },
+      "queryTimeoutSeconds": 60,
+      "readOnly": false,
+      "transactionIsolation": "REPEATABLE_READ"
+    }
+  }'
+
+================================================================================
+10. BATCH INSERT OPERATION - HIGH RETRY
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Batch Data Insert",
+    "type": "DATABASE",
+    "priority": "CRITICAL",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:35:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 5,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 15,
+      "retryOn": ["DATABASE_ERROR", "TIMEOUT", "CONNECTION_ERROR", "DEADLOCK"]
+    },
+    "payload": {
+      "type": "DATABASE",
+      "query": "INSERT INTO audit_events (user_id, action, entity_type, entity_id, created_at, details) VALUES (?, ?, ?, ?, NOW(), ?)",
+      "databaseUrl": "jdbc:mysql://mysql:3306/chronos_db?user=chronos_user1&password=StrongPassword123!",
+      "parameters": {
+        "user_id": 1,
+        "action": "BATCH_PROCESS",
+        "entity_type": "SYSTEM",
+        "entity_id": "batch-001",
+        "details": "{\"operation\": \"data_migration\", \"records\": 1000}"
+      },
+      "queryTimeoutSeconds": 300,
+      "readOnly": false,
+      "transactionIsolation": "READ_COMMITTED"
+    }
+  }'
+
+================================================================================
+11. SQL SERVER CONNECTION EXAMPLE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "SQL Server Query",
+    "type": "DATABASE",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:40:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 4,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 20,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "DATABASE_ERROR"]
+    },
+    "payload": {
+      "type": "DATABASE",
+      "query": "SELECT TOP 100 OrderID, CustomerID, OrderDate FROM Orders WHERE OrderDate >= ?",
+      "databaseUrl": "jdbc:sqlserver://sqlserver:1433;databaseName=NorthwindDB;user=sa;password=SqlServer123!",
+      "parameters": {
+        "order_date": "2025-01-01"
+      },
+      "queryTimeoutSeconds": 120,
+      "maxRows": 100,
+      "readOnly": true,
+      "transactionIsolation": "READ_UNCOMMITTED"
+    }
+  }'
+
+================================================================================
+12. ORACLE DATABASE CONNECTION EXAMPLE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Oracle Database Query",
+    "type": "DATABASE",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T15:45:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 45,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT", "DATABASE_ERROR"]
+    },
+    "payload": {
+      "type": "DATABASE",
+      "query": "SELECT EMPLOYEE_ID, FIRST_NAME, LAST_NAME, HIRE_DATE FROM EMPLOYEES WHERE HIRE_DATE >= TO_DATE(?, \"YYYY-MM-DD\")",
+      "databaseUrl": "jdbc:oracle:thin:@oracle-server:1521:XE?user=hr&password=OraclePass123!",
+      "parameters": {
+        "hire_date": "2025-01-01"
+      },
+      "queryTimeoutSeconds": 90,
+      "maxRows": 200,
+      "readOnly": true,
+      "transactionIsolation": "SERIALIZABLE"
+    }
+  }'
+
+================================================================================
+                              NOTES
+================================================================================
+
+Database Job Payload Fields:
+- query (required): SQL query to execute
+- databaseUrl (required): JDBC connection string with credentials
+- parameters (optional): Named parameters for parameterized queries
+- queryTimeoutSeconds (optional): Query timeout (default: 30)
+- maxRows (optional): Maximum result rows (default: 1000)
+- readOnly (optional): Read-only flag (default: true)
+- transactionIsolation (optional): Transaction isolation level
+
+Supported Database Types:
+- MySQL: jdbc:mysql://host:port/database?user=u&password=p
+- PostgreSQL: jdbc:postgresql://host:port/database?user=u&password=p
+- SQL Server: jdbc:sqlserver://host:port;databaseName=db;user=u;password=p
+- Oracle: jdbc:oracle:thin:@host:port:sid?user=u&password=p
+- H2: jdbc:h2:mem:testdb or jdbc:h2:file:./data/db
+
+Transaction Isolation Levels:
+- READ_UNCOMMITTED: Lowest isolation, allows dirty reads
+- READ_COMMITTED: Prevents dirty reads (default)
+- REPEATABLE_READ: Prevents dirty and non-repeatable reads
+- SERIALIZABLE: Highest isolation, prevents all phenomena
+
+Retry Error Types:
+- DATABASE_ERROR: SQL execution errors
+- CONNECTION_ERROR: Database connection failures
+- TIMEOUT: Query timeout errors
+- DEADLOCK: Database deadlock situations
+
+Security Best Practices:
+- Use dedicated database users with minimal permissions
+- Include credentials in JDBC URL or use connection pooling
+- Set appropriate queryTimeoutSeconds to prevent long-running queries
+- Use readOnly: true for SELECT operations
+- Limit maxRows to prevent memory issues
+- Use parameterized queries to prevent SQL injection
+
+Performance Tips:
+- Use indexes on frequently queried columns
+- Monitor query execution times via job run logs
+- Configure connection pooling for high-frequency jobs
+- Set appropriate transaction isolation levels
+- Use LIMIT/TOP clauses for large result sets
+
+================================================================================

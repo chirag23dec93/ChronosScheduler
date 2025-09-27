@@ -1,0 +1,597 @@
+================================================================================
+                        FILE SYSTEM JOB TYPE - CURL EXAMPLES
+================================================================================
+
+# Authentication Token (use for all requests)
+TOKEN="eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJyZXRyeUB0ZXN0LmNvbSIsImlhdCI6MTc1ODM3MjU1NCwiZXhwIjoxNzU4NDU4OTU0fQ.Me91m3fwqVZ7eGHYBhScCCXAoj6o6BtCM0BZaxRnSVY"
+
+================================================================================
+1. FILE COPY OPERATION - SIMPLE COPY
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Copy Configuration File",
+    "type": "FILE_SYSTEM",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:05:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "FILE_SYSTEM",
+      "operation": "COPY",
+      "path": "/tmp/source-config.properties",
+      "targetPath": "/tmp/backup-config.properties",
+      "createDirectories": true,
+      "overwrite": true,
+      "parameters": {
+        "preserveAttributes": true,
+        "followSymlinks": false
+      }
+    }
+  }'
+
+================================================================================
+2. FILE MOVE OPERATION - WITH RETRY POLICY
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Move Log Files to Archive",
+    "type": "FILE_SYSTEM",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:06:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 10,
+      "retryOn": ["FILE_ERROR", "IO_ERROR", "PERMISSION_ERROR"]
+    },
+    "payload": {
+      "type": "FILE_SYSTEM",
+      "operation": "MOVE",
+      "path": "/tmp/application.log",
+      "targetPath": "/tmp/archive/application-backup.log",
+      "createDirectories": true,
+      "overwrite": false,
+      "parameters": {
+        "atomic": true,
+        "backupExisting": true
+      }
+    }
+  }'
+
+================================================================================
+3. FILE DELETE OPERATION - CLEANUP
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Delete Temporary Files",
+    "type": "FILE_SYSTEM",
+    "priority": "LOW",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:07:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 15,
+      "retryOn": ["FILE_ERROR", "PERMISSION_ERROR"]
+    },
+    "payload": {
+      "type": "FILE_SYSTEM",
+      "operation": "DELETE",
+      "path": "/tmp/temp-files",
+      "parameters": {
+        "recursive": true,
+        "pattern": "*.tmp",
+        "olderThanDays": 7,
+        "dryRun": false
+      }
+    }
+  }'
+
+================================================================================
+4. FILE PROCESS OPERATION - DATA TRANSFORMATION
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Process CSV Data File",
+    "type": "FILE_SYSTEM",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:08:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 8,
+      "retryOn": ["FILE_ERROR", "PROCESSING_ERROR", "FORMAT_ERROR"]
+    },
+    "payload": {
+      "type": "FILE_SYSTEM",
+      "operation": "PROCESS",
+      "path": "/tmp/data/input.csv",
+      "targetPath": "/tmp/data/processed-output.csv",
+      "createDirectories": true,
+      "parameters": {
+        "processingType": "csv_transform",
+        "delimiter": ",",
+        "skipHeader": true,
+        "encoding": "UTF-8",
+        "transformations": {
+          "uppercase_names": true,
+          "format_dates": "yyyy-MM-dd",
+          "remove_duplicates": true
+        }
+      }
+    }
+  }'
+
+================================================================================
+5. FILE COMPRESS OPERATION - ARCHIVE CREATION
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Compress Log Directory",
+    "type": "FILE_SYSTEM",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:09:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 12,
+      "retryOn": ["FILE_ERROR", "COMPRESSION_ERROR", "DISK_SPACE_ERROR"]
+    },
+    "payload": {
+      "type": "FILE_SYSTEM",
+      "operation": "COMPRESS",
+      "path": "/tmp/logs",
+      "targetPath": "/tmp/archives/logs-backup.tar.gz",
+      "createDirectories": true,
+      "parameters": {
+        "compressionType": "gzip",
+        "compressionLevel": 6,
+        "includeHidden": false,
+        "excludePatterns": ["*.tmp", "*.lock"],
+        "preservePath": true
+      }
+    }
+  }'
+
+================================================================================
+6. RECURRING FILE CLEANUP - CRON SCHEDULE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Daily Log File Cleanup",
+    "type": "FILE_SYSTEM",
+    "priority": "LOW",
+    "schedule": {
+      "scheduleType": "CRON",
+      "cronExpression": "0 0 1 * * ?",
+      "timezone": "UTC",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 30,
+      "retryOn": ["FILE_ERROR", "PERMISSION_ERROR"]
+    },
+    "payload": {
+      "type": "FILE_SYSTEM",
+      "operation": "DELETE",
+      "path": "/tmp/application-logs",
+      "parameters": {
+        "recursive": true,
+        "pattern": "*.log",
+        "olderThanDays": 30,
+        "keepLatest": 10,
+        "dryRun": false,
+        "generateReport": true
+      }
+    }
+  }'
+
+================================================================================
+7. DIRECTORY SYNCHRONIZATION - BACKUP OPERATION
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Sync Configuration Directory",
+    "type": "FILE_SYSTEM",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "INTERVAL",
+      "intervalSeconds": 3600,
+      "misfirePolicy": "RESCHEDULE"
+    },
+    "retryPolicy": {
+      "maxAttempts": 4,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 15,
+      "retryOn": ["FILE_ERROR", "SYNC_ERROR", "NETWORK_ERROR"]
+    },
+    "payload": {
+      "type": "FILE_SYSTEM",
+      "operation": "COPY",
+      "path": "/tmp/config",
+      "targetPath": "/tmp/config-backup",
+      "createDirectories": true,
+      "overwrite": true,
+      "parameters": {
+        "syncMode": true,
+        "deleteExtra": false,
+        "preserveTimestamps": true,
+        "compareChecksum": true,
+        "excludePatterns": ["*.tmp", "*.lock", ".git/*"]
+      }
+    }
+  }'
+
+================================================================================
+8. BATCH FILE PROCESSING - MULTIPLE FILES
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Batch Process Image Files",
+    "type": "FILE_SYSTEM",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:12:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 10,
+      "retryOn": ["FILE_ERROR", "PROCESSING_ERROR", "FORMAT_ERROR"]
+    },
+    "payload": {
+      "type": "FILE_SYSTEM",
+      "operation": "PROCESS",
+      "path": "/tmp/images",
+      "targetPath": "/tmp/processed-images",
+      "createDirectories": true,
+      "parameters": {
+        "batchMode": true,
+        "pattern": "*.jpg,*.png,*.gif",
+        "processingType": "image_resize",
+        "maxWidth": 800,
+        "maxHeight": 600,
+        "quality": 85,
+        "format": "jpg",
+        "parallelProcessing": true,
+        "maxThreads": 4
+      }
+    }
+  }'
+
+================================================================================
+9. FILE MONITORING AND PROCESSING - WATCH DIRECTORY
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Monitor Upload Directory",
+    "type": "FILE_SYSTEM",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "INTERVAL",
+      "intervalSeconds": 60,
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 5,
+      "retryOn": ["FILE_ERROR", "MONITORING_ERROR", "PROCESSING_ERROR"]
+    },
+    "payload": {
+      "type": "FILE_SYSTEM",
+      "operation": "PROCESS",
+      "path": "/tmp/uploads",
+      "targetPath": "/tmp/processed-uploads",
+      "createDirectories": true,
+      "parameters": {
+        "monitorMode": true,
+        "processNewFiles": true,
+        "pattern": "*.*",
+        "minFileAge": 30,
+        "maxFileSize": "100MB",
+        "virusScan": false,
+        "quarantineInvalid": true,
+        "notifyOnProcess": true
+      }
+    }
+  }'
+
+================================================================================
+10. LARGE FILE SPLIT OPERATION - CHUNK PROCESSING
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Split Large Data File",
+    "type": "FILE_SYSTEM",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:15:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 30,
+      "retryOn": ["FILE_ERROR", "DISK_SPACE_ERROR", "PROCESSING_ERROR"]
+    },
+    "payload": {
+      "type": "FILE_SYSTEM",
+      "operation": "PROCESS",
+      "path": "/tmp/large-dataset.csv",
+      "targetPath": "/tmp/chunks",
+      "createDirectories": true,
+      "parameters": {
+        "processingType": "file_split",
+        "chunkSize": "10MB",
+        "chunkLines": 10000,
+        "preserveHeader": true,
+        "namingPattern": "chunk_{index:03d}.csv",
+        "validateChunks": true,
+        "generateManifest": true
+      }
+    }
+  }'
+
+================================================================================
+11. FILE ENCRYPTION OPERATION - SECURITY
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Encrypt Sensitive Files",
+    "type": "FILE_SYSTEM",
+    "priority": "CRITICAL",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:17:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 10,
+      "retryOn": ["FILE_ERROR", "ENCRYPTION_ERROR", "KEY_ERROR"]
+    },
+    "payload": {
+      "type": "FILE_SYSTEM",
+      "operation": "PROCESS",
+      "path": "/tmp/sensitive-data",
+      "targetPath": "/tmp/encrypted-data",
+      "createDirectories": true,
+      "parameters": {
+        "processingType": "encryption",
+        "algorithm": "AES-256-GCM",
+        "keySource": "environment",
+        "keyVariable": "ENCRYPTION_KEY",
+        "pattern": "*.pdf,*.doc,*.xlsx",
+        "deleteOriginal": false,
+        "verifyEncryption": true
+      }
+    }
+  }'
+
+================================================================================
+12. FILE VALIDATION AND INTEGRITY CHECK
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Validate File Integrity",
+    "type": "FILE_SYSTEM",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "CRON",
+      "cronExpression": "0 0 */6 * * ?",
+      "timezone": "UTC",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 20,
+      "retryOn": ["FILE_ERROR", "VALIDATION_ERROR", "CHECKSUM_ERROR"]
+    },
+    "payload": {
+      "type": "FILE_SYSTEM",
+      "operation": "PROCESS",
+      "path": "/tmp/critical-files",
+      "parameters": {
+        "processingType": "integrity_check",
+        "checksumAlgorithm": "SHA-256",
+        "validateSize": true,
+        "validatePermissions": true,
+        "compareBaseline": true,
+        "baselineFile": "/tmp/file-baseline.json",
+        "generateReport": true,
+        "alertOnChanges": true
+      }
+    }
+  }'
+
+================================================================================
+                              NOTES
+================================================================================
+
+File System Job Payload Fields:
+- operation (required): COPY, MOVE, DELETE, PROCESS, COMPRESS
+- path (required): Source file or directory path
+- targetPath (optional): Destination path for COPY, MOVE, COMPRESS operations
+- createDirectories (optional): Create parent directories if they don't exist
+- overwrite (optional): Overwrite existing files
+- parameters (optional): Operation-specific configuration
+
+Supported Operations:
+
+1. COPY Operation:
+   - Copy files or directories
+   - Preserve attributes and timestamps
+   - Handle symbolic links
+   - Sync mode for directory synchronization
+   - Exclude patterns for selective copying
+
+2. MOVE Operation:
+   - Move/rename files or directories
+   - Atomic operations when possible
+   - Backup existing files before overwrite
+   - Cross-filesystem move support
+
+3. DELETE Operation:
+   - Delete files or directories
+   - Recursive deletion for directories
+   - Pattern-based deletion (*.tmp, *.log)
+   - Age-based deletion (older than X days)
+   - Dry run mode for testing
+
+4. PROCESS Operation:
+   - File format conversion
+   - Data transformation (CSV, JSON, XML)
+   - Image processing and resizing
+   - File splitting and merging
+   - Encryption and decryption
+   - Integrity checking and validation
+   - Batch processing of multiple files
+
+5. COMPRESS Operation:
+   - Create archives (ZIP, TAR, GZIP)
+   - Configurable compression levels
+   - Include/exclude patterns
+   - Preserve directory structure
+
+Common Parameters:
+- recursive: Apply operation recursively to subdirectories
+- pattern: File pattern matching (*.txt, *.log, etc.)
+- olderThanDays: Age-based file filtering
+- preserveAttributes: Maintain file permissions and timestamps
+- followSymlinks: Follow symbolic links during operations
+- atomic: Ensure atomic operations where possible
+- dryRun: Test mode without actual file modifications
+- generateReport: Create operation summary report
+
+Processing Types:
+- csv_transform: CSV data transformation
+- image_resize: Image resizing and format conversion
+- file_split: Split large files into chunks
+- file_merge: Merge multiple files
+- encryption: File encryption/decryption
+- integrity_check: File integrity validation
+- format_conversion: Convert between file formats
+- data_cleanup: Clean and normalize data files
+
+Error Handling & Retry:
+- FILE_ERROR: General file system errors
+- IO_ERROR: Input/output operation errors
+- PERMISSION_ERROR: File permission issues
+- PROCESSING_ERROR: File processing failures
+- COMPRESSION_ERROR: Archive creation errors
+- ENCRYPTION_ERROR: Encryption/decryption failures
+- DISK_SPACE_ERROR: Insufficient disk space
+- FORMAT_ERROR: Invalid file format errors
+- VALIDATION_ERROR: File validation failures
+- CHECKSUM_ERROR: Checksum verification failures
+
+Security Considerations:
+- File path validation to prevent directory traversal
+- Permission checks before file operations
+- Secure handling of temporary files
+- Encryption for sensitive data
+- Audit logging of file operations
+- Virus scanning integration (optional)
+
+Performance Optimization:
+- Parallel processing for batch operations
+- Streaming for large file operations
+- Efficient memory usage for file processing
+- Progress tracking for long operations
+- Resource cleanup and garbage collection
+
+Monitoring and Logging:
+- Operation progress tracking
+- File count and size statistics
+- Error rate monitoring
+- Performance metrics (throughput, duration)
+- Detailed operation logs
+- Success/failure notifications
+
+Use Cases:
+- Log file rotation and archival
+- Data backup and synchronization
+- File format conversion and processing
+- Cleanup of temporary and old files
+- Image and document processing
+- Data migration and transformation
+- File integrity monitoring
+- Automated file organization
+- Batch file operations
+- Security and encryption workflows
+
+Best Practices:
+- Use absolute paths for reliability
+- Test with dryRun mode first
+- Implement proper error handling
+- Monitor disk space before operations
+- Use appropriate compression levels
+- Validate file permissions
+- Implement backup strategies
+- Use pattern matching efficiently
+- Monitor operation performance
+- Clean up temporary files
+
+================================================================================

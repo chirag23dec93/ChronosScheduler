@@ -1,0 +1,423 @@
+================================================================================
+                          SCRIPT JOB TYPE - CURL EXAMPLES
+================================================================================
+
+# Authentication Token (use for all requests)
+TOKEN="eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJyZXRyeUB0ZXN0LmNvbSIsImlhdCI6MTc1ODM3MjU1NCwiZXhwIjoxNzU4NDU4OTU0fQ.Me91m3fwqVZ7eGHYBhScCCXAoj6o6BtCM0BZaxRnSVY"
+
+================================================================================
+1. SIMPLE BASH SCRIPT - HELLO WORLD
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Simple Hello World Script",
+    "type": "SCRIPT",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:50:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "SCRIPT",
+      "script": "#!/bin/bash\necho \"Hello from Chronos Scheduler!\"\necho \"Current time: $(date)\"\necho \"Job executed successfully\""
+    }
+  }'
+
+================================================================================
+2. SYSTEM MONITORING SCRIPT - WITH RETRY POLICY
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "System Monitoring Script",
+    "type": "SCRIPT",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:51:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 10,
+      "retryOn": ["SCRIPT_ERROR", "TIMEOUT", "SYSTEM_ERROR"]
+    },
+    "payload": {
+      "type": "SCRIPT",
+      "script": "#!/bin/bash\necho \"=== System Monitoring Report ===\"\necho \"Hostname: $(hostname)\"\necho \"Uptime: $(uptime)\"\necho \"Memory Usage:\"\nfree -h\necho \"Disk Usage:\"\ndf -h\necho \"CPU Info:\"\ntop -bn1 | grep \"Cpu(s)\"\necho \"=== End Report ===\""
+    }
+  }'
+
+================================================================================
+3. FILE PROCESSING SCRIPT - DATA CLEANUP
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Log File Cleanup Script",
+    "type": "SCRIPT",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:52:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 30,
+      "retryOn": ["SCRIPT_ERROR", "FILE_ERROR"]
+    },
+    "payload": {
+      "type": "SCRIPT",
+      "script": "#!/bin/bash\necho \"Starting log cleanup process...\"\nLOG_DIR=\"/tmp/chronos-logs\"\nmkdir -p $LOG_DIR\necho \"Log directory: $LOG_DIR\"\necho \"Creating test log files...\"\nfor i in {1..5}; do\n  echo \"Test log entry $i - $(date)\" > \"$LOG_DIR/test-$i.log\"\ndone\necho \"Files created:\"\nls -la $LOG_DIR\necho \"Cleaning up files older than 1 minute...\"\nfind $LOG_DIR -name \"*.log\" -type f -mmin +0 -delete\necho \"Cleanup completed\"\nls -la $LOG_DIR"
+    }
+  }'
+
+================================================================================
+4. PYTHON SCRIPT EXECUTION - DATA PROCESSING
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Python Data Processing Script",
+    "type": "SCRIPT",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:53:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 5,
+      "retryOn": ["SCRIPT_ERROR", "PYTHON_ERROR", "TIMEOUT"]
+    },
+    "payload": {
+      "type": "SCRIPT",
+      "script": "#!/usr/bin/env python3\nimport json\nimport datetime\nimport sys\n\nprint(\"=== Python Data Processing Script ===\")\nprint(f\"Python version: {sys.version}\")\nprint(f\"Execution time: {datetime.datetime.now()}\")\n\n# Sample data processing\ndata = {\n    \"job_id\": \"python-processing-001\",\n    \"timestamp\": datetime.datetime.now().isoformat(),\n    \"status\": \"processing\",\n    \"records_processed\": 1000,\n    \"success_rate\": 98.5\n}\n\nprint(\"Processing data...\")\nprint(json.dumps(data, indent=2))\nprint(\"Data processing completed successfully!\")"
+    }
+  }'
+
+================================================================================
+5. RECURRING BACKUP SCRIPT - CRON SCHEDULE
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Daily Backup Script",
+    "type": "SCRIPT",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "CRON",
+      "cronExpression": "0 0 2 * * ?",
+      "timezone": "UTC",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 60,
+      "retryOn": ["SCRIPT_ERROR", "BACKUP_ERROR", "STORAGE_ERROR"]
+    },
+    "payload": {
+      "type": "SCRIPT",
+      "script": "#!/bin/bash\necho \"=== Daily Backup Script ===\"\nBACKUP_DIR=\"/tmp/chronos-backups\"\nDATE=$(date +%Y%m%d_%H%M%S)\nBACKUP_FILE=\"backup_$DATE.tar.gz\"\n\necho \"Creating backup directory: $BACKUP_DIR\"\nmkdir -p $BACKUP_DIR\n\necho \"Creating sample data for backup...\"\nDATA_DIR=\"/tmp/sample-data\"\nmkdir -p $DATA_DIR\necho \"Sample data file 1\" > \"$DATA_DIR/data1.txt\"\necho \"Sample data file 2\" > \"$DATA_DIR/data2.txt\"\necho \"Configuration data\" > \"$DATA_DIR/config.json\"\n\necho \"Creating backup archive: $BACKUP_FILE\"\ntar -czf \"$BACKUP_DIR/$BACKUP_FILE\" -C \"$DATA_DIR\" .\n\necho \"Backup created successfully:\"\nls -la \"$BACKUP_DIR/$BACKUP_FILE\"\n\necho \"Cleaning up old backups (keeping last 7)...\"\nfind $BACKUP_DIR -name \"backup_*.tar.gz\" -type f -mtime +7 -delete\n\necho \"Backup process completed!\""
+    }
+  }'
+
+================================================================================
+6. DATABASE MAINTENANCE SCRIPT - MYSQL OPERATIONS
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Database Maintenance Script",
+    "type": "SCRIPT",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:55:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 45,
+      "retryOn": ["SCRIPT_ERROR", "DATABASE_ERROR", "CONNECTION_ERROR"]
+    },
+    "payload": {
+      "type": "SCRIPT",
+      "script": "#!/bin/bash\necho \"=== Database Maintenance Script ===\"\necho \"Checking database connection...\"\n\n# Database connection parameters\nDB_HOST=\"mysql\"\nDB_PORT=\"3306\"\nDB_NAME=\"chronos_db\"\nDB_USER=\"chronos_user1\"\nDB_PASS=\"StrongPassword123!\"\n\necho \"Connecting to database: $DB_HOST:$DB_PORT/$DB_NAME\"\n\n# Check if mysql client is available\nif ! command -v mysql &> /dev/null; then\n    echo \"MySQL client not found, simulating database operations...\"\n    echo \"Simulated: ANALYZE TABLE jobs;\"\n    echo \"Simulated: OPTIMIZE TABLE job_runs;\"\n    echo \"Simulated: DELETE FROM job_run_logs WHERE timestamp < DATE_SUB(NOW(), INTERVAL 30 DAY);\"\n    echo \"Database maintenance simulation completed\"\nelse\n    echo \"MySQL client found, executing real operations...\"\n    mysql -h$DB_HOST -P$DB_PORT -u$DB_USER -p$DB_PASS $DB_NAME -e \"SELECT COUNT(*) as job_count FROM jobs;\"\nfi\n\necho \"Database maintenance script completed!\""
+    }
+  }'
+
+================================================================================
+7. API HEALTH CHECK SCRIPT - CURL OPERATIONS
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "API Health Check Script",
+    "type": "SCRIPT",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "INTERVAL",
+      "intervalSeconds": 300,
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 10,
+      "retryOn": ["SCRIPT_ERROR", "NETWORK_ERROR", "API_ERROR"]
+    },
+    "payload": {
+      "type": "SCRIPT",
+      "script": "#!/bin/bash\necho \"=== API Health Check Script ===\"\necho \"Checking API endpoints...\"\n\n# Health check endpoint\necho \"Checking health endpoint...\"\nHEALTH_RESPONSE=$(curl -s -w \"%{http_code}\" http://localhost:8080/actuator/health)\nHEALTH_CODE=${HEALTH_RESPONSE: -3}\nHEALTH_BODY=${HEALTH_RESPONSE%???}\n\necho \"Health endpoint response code: $HEALTH_CODE\"\necho \"Health endpoint response: $HEALTH_BODY\"\n\nif [ \"$HEALTH_CODE\" = \"200\" ]; then\n    echo \"✅ Health check passed\"\nelse\n    echo \"❌ Health check failed\"\nfi\n\n# Info endpoint\necho \"Checking info endpoint...\"\nINFO_RESPONSE=$(curl -s -w \"%{http_code}\" http://localhost:8080/actuator/info)\nINFO_CODE=${INFO_RESPONSE: -3}\n\necho \"Info endpoint response code: $INFO_CODE\"\n\nif [ \"$INFO_CODE\" = \"200\" ]; then\n    echo \"✅ Info endpoint accessible\"\nelse\n    echo \"❌ Info endpoint failed\"\nfi\n\necho \"API health check completed!\""
+    }
+  }'
+
+================================================================================
+8. LOG ANALYSIS SCRIPT - TEXT PROCESSING
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Log Analysis Script",
+    "type": "SCRIPT",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:57:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "payload": {
+      "type": "SCRIPT",
+      "script": "#!/bin/bash\necho \"=== Log Analysis Script ===\"\n\n# Create sample log file\nLOG_FILE=\"/tmp/sample-app.log\"\necho \"Creating sample log file: $LOG_FILE\"\n\ncat > $LOG_FILE << EOF\n2025-09-20 16:57:01 INFO  Application started successfully\n2025-09-20 16:57:02 DEBUG User login attempt: user123\n2025-09-20 16:57:03 INFO  User login successful: user123\n2025-09-20 16:57:04 WARN  High memory usage detected: 85%\n2025-09-20 16:57:05 ERROR Database connection failed\n2025-09-20 16:57:06 INFO  Database connection restored\n2025-09-20 16:57:07 DEBUG Processing request: /api/jobs\n2025-09-20 16:57:08 ERROR Invalid request format\n2025-09-20 16:57:09 INFO  Request processed successfully\n2025-09-20 16:57:10 WARN  Rate limit approaching for user123\nEOF\n\necho \"Analyzing log file...\"\necho \"Total lines: $(wc -l < $LOG_FILE)\"\necho \"INFO messages: $(grep -c \"INFO\" $LOG_FILE)\"\necho \"WARN messages: $(grep -c \"WARN\" $LOG_FILE)\"\necho \"ERROR messages: $(grep -c \"ERROR\" $LOG_FILE)\"\necho \"DEBUG messages: $(grep -c \"DEBUG\" $LOG_FILE)\"\n\necho \"Recent errors:\"\ngrep \"ERROR\" $LOG_FILE\n\necho \"Recent warnings:\"\ngrep \"WARN\" $LOG_FILE\n\necho \"Log analysis completed!\"\nrm -f $LOG_FILE"
+    }
+  }'
+
+================================================================================
+9. ENVIRONMENT SETUP SCRIPT - CONFIGURATION
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Environment Setup Script",
+    "type": "SCRIPT",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T16:58:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 20,
+      "retryOn": ["SCRIPT_ERROR", "SETUP_ERROR"]
+    },
+    "payload": {
+      "type": "SCRIPT",
+      "script": "#!/bin/bash\necho \"=== Environment Setup Script ===\"\n\n# Create application directories\necho \"Creating application directories...\"\nAPP_DIR=\"/tmp/chronos-app\"\nmkdir -p $APP_DIR/{config,logs,data,temp}\n\necho \"Directory structure created:\"\ntree $APP_DIR 2>/dev/null || find $APP_DIR -type d\n\n# Create configuration files\necho \"Creating configuration files...\"\ncat > $APP_DIR/config/app.properties << EOF\napp.name=chronos-scheduler\napp.version=1.0.0\napp.environment=production\nlog.level=INFO\ndatabase.pool.size=10\ncache.enabled=true\nEOF\n\ncat > $APP_DIR/config/logging.properties << EOF\nlog.file=$APP_DIR/logs/application.log\nlog.max.size=100MB\nlog.retention.days=30\nEOF\n\necho \"Configuration files created:\"\nls -la $APP_DIR/config/\n\necho \"Configuration contents:\"\necho \"--- app.properties ---\"\ncat $APP_DIR/config/app.properties\necho \"--- logging.properties ---\"\ncat $APP_DIR/config/logging.properties\n\n# Set permissions\necho \"Setting directory permissions...\"\nchmod -R 755 $APP_DIR\n\necho \"Environment setup completed successfully!\""
+    }
+  }'
+
+================================================================================
+10. PERFORMANCE BENCHMARK SCRIPT - STRESS TESTING
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Performance Benchmark Script",
+    "type": "SCRIPT",
+    "priority": "LOW",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-20T17:00:00Z",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 30,
+      "retryOn": ["SCRIPT_ERROR", "TIMEOUT"]
+    },
+    "payload": {
+      "type": "SCRIPT",
+      "script": "#!/bin/bash\necho \"=== Performance Benchmark Script ===\"\n\n# CPU benchmark\necho \"Running CPU benchmark...\"\nstart_time=$(date +%s)\nfor i in {1..1000000}; do\n    result=$((i * i))\ndone\nend_time=$(date +%s)\ncpu_duration=$((end_time - start_time))\necho \"CPU benchmark completed in $cpu_duration seconds\"\n\n# Memory benchmark\necho \"Running memory benchmark...\"\nstart_time=$(date +%s)\nfor i in {1..1000}; do\n    data=\"data_$i$(date +%s%N)\"\n    echo $data > /dev/null\ndone\nend_time=$(date +%s)\nmem_duration=$((end_time - start_time))\necho \"Memory benchmark completed in $mem_duration seconds\"\n\n# Disk I/O benchmark\necho \"Running disk I/O benchmark...\"\nTEST_FILE=\"/tmp/benchmark_test.dat\"\nstart_time=$(date +%s)\ndd if=/dev/zero of=$TEST_FILE bs=1M count=10 2>/dev/null\ndd if=$TEST_FILE of=/dev/null bs=1M 2>/dev/null\nrm -f $TEST_FILE\nend_time=$(date +%s)\nio_duration=$((end_time - start_time))\necho \"Disk I/O benchmark completed in $io_duration seconds\"\n\n# Summary\necho \"=== Benchmark Results ===\"\necho \"CPU test duration: $cpu_duration seconds\"\necho \"Memory test duration: $mem_duration seconds\"\necho \"Disk I/O test duration: $io_duration seconds\"\ntotal_duration=$((cpu_duration + mem_duration + io_duration))\necho \"Total benchmark time: $total_duration seconds\"\necho \"Benchmark completed successfully!\""
+    }
+  }'
+
+================================================================================
+11. DOCKER CONTAINER MANAGEMENT SCRIPT
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Docker Container Status Script",
+    "type": "SCRIPT",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "CRON",
+      "cronExpression": "0 */30 * * * ?",
+      "timezone": "UTC",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 15,
+      "retryOn": ["SCRIPT_ERROR", "DOCKER_ERROR"]
+    },
+    "payload": {
+      "type": "SCRIPT",
+      "script": "#!/bin/bash\necho \"=== Docker Container Management Script ===\"\n\n# Check if docker is available\nif ! command -v docker &> /dev/null; then\n    echo \"Docker not found, simulating container status check...\"\n    echo \"Simulated containers:\"\n    echo \"chronos-app        : RUNNING (healthy)\"\n    echo \"chronos-mysql      : RUNNING (healthy)\"\n    echo \"chronos-redis      : RUNNING (healthy)\"\n    echo \"chronos-kafka      : RUNNING (healthy)\"\n    echo \"chronos-zookeeper  : RUNNING (healthy)\"\n    echo \"chronos-prometheus : RUNNING (healthy)\"\n    echo \"chronos-grafana    : RUNNING (healthy)\"\nelse\n    echo \"Docker found, checking real container status...\"\n    echo \"Running containers:\"\n    docker ps --format \"table {{.Names}}\\t{{.Status}}\\t{{.Ports}}\"\n    \n    echo \"Container resource usage:\"\n    docker stats --no-stream --format \"table {{.Name}}\\t{{.CPUPerc}}\\t{{.MemUsage}}\"\nfi\n\necho \"Container status check completed!\""
+    }
+  }'
+
+================================================================================
+12. NETWORK CONNECTIVITY TEST SCRIPT
+================================================================================
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Network Connectivity Test",
+    "type": "SCRIPT",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "INTERVAL",
+      "intervalSeconds": 600,
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 5,
+      "retryOn": ["SCRIPT_ERROR", "NETWORK_ERROR", "TIMEOUT"]
+    },
+    "payload": {
+      "type": "SCRIPT",
+      "script": "#!/bin/bash\necho \"=== Network Connectivity Test Script ===\"\n\n# Test internal services\necho \"Testing internal service connectivity...\"\nSERVICES=(\"mysql:3306\" \"redis:6379\" \"kafka:9092\" \"prometheus:9090\" \"grafana:3000\")\n\nfor service in \"${SERVICES[@]}\"; do\n    host=$(echo $service | cut -d: -f1)\n    port=$(echo $service | cut -d: -f2)\n    \n    echo -n \"Testing $service... \"\n    if timeout 5 bash -c \"</dev/tcp/$host/$port\"; then\n        echo \"✅ Connected\"\n    else\n        echo \"❌ Failed\"\n    fi\ndone\n\n# Test external connectivity\necho \"Testing external connectivity...\"\nEXTERNAL_HOSTS=(\"google.com\" \"github.com\" \"httpbin.org\")\n\nfor host in \"${EXTERNAL_HOSTS[@]}\"; do\n    echo -n \"Pinging $host... \"\n    if ping -c 1 -W 3 $host > /dev/null 2>&1; then\n        echo \"✅ Reachable\"\n    else\n        echo \"❌ Unreachable\"\n    fi\ndone\n\n# DNS resolution test\necho \"Testing DNS resolution...\"\necho -n \"Resolving localhost... \"\nnslookup localhost > /dev/null 2>&1 && echo \"✅ OK\" || echo \"❌ Failed\"\n\necho \"Network connectivity test completed!\""
+    }
+  }'
+
+================================================================================
+                              NOTES
+================================================================================
+
+Script Job Payload Fields:
+- script (required): The script content to execute
+
+Supported Script Types:
+- Bash/Shell scripts (#!/bin/bash, #!/bin/sh)
+- Python scripts (#!/usr/bin/env python3)
+- Perl scripts (#!/usr/bin/perl)
+- Ruby scripts (#!/usr/bin/ruby)
+- Node.js scripts (#!/usr/bin/node)
+- Any executable with proper shebang
+
+Script Execution Environment:
+- Runs in isolated process with timeout protection
+- Access to system commands and utilities
+- Environment variables available
+- Working directory: /tmp (configurable)
+- Process cleanup on completion or timeout
+- Standard output/error capture
+
+Common Use Cases:
+- System monitoring and health checks
+- File processing and data cleanup
+- Database maintenance operations
+- Backup and restore procedures
+- Log analysis and reporting
+- Performance benchmarking
+- Environment setup and configuration
+- API testing and validation
+- Container management
+- Network connectivity testing
+
+Best Practices:
+- Always include proper shebang (#!/bin/bash)
+- Add error handling with set -e for bash scripts
+- Use meaningful echo statements for progress tracking
+- Include cleanup operations for temporary files
+- Set appropriate timeouts for long-running operations
+- Use absolute paths for file operations
+- Validate required tools/commands before use
+- Include proper exit codes for success/failure
+
+Error Handling:
+- Script execution errors are captured
+- Non-zero exit codes trigger retry policies
+- Standard error output is logged
+- Timeout protection prevents hanging scripts
+- Process cleanup on failure or timeout
+- Resource cleanup for temporary files
+
+Security Considerations:
+- Scripts run with limited privileges
+- No access to sensitive system areas
+- Input validation for dynamic script content
+- Process isolation and resource limits
+- Audit logging of script execution
+- Secure handling of credentials and secrets
+
+Performance Tips:
+- Optimize script execution time
+- Use efficient commands and operations
+- Avoid unnecessary file I/O operations
+- Implement proper resource cleanup
+- Monitor memory and CPU usage
+- Use background processes for long operations
+
+Monitoring and Logging:
+- All script output is captured and logged
+- Execution time tracking
+- Success/failure rate monitoring
+- Resource usage statistics
+- Error pattern analysis
+- Performance trend tracking
+
+Retry Policy Configuration:
+- SCRIPT_ERROR: General script execution errors
+- TIMEOUT: Script execution timeout
+- SYSTEM_ERROR: System-level errors
+- PYTHON_ERROR: Python-specific errors
+- DATABASE_ERROR: Database operation errors
+- NETWORK_ERROR: Network connectivity issues
+- FILE_ERROR: File system operation errors
+- DOCKER_ERROR: Docker operation errors
+- API_ERROR: API call failures
+- SETUP_ERROR: Environment setup failures
+
+================================================================================

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Job Status Notification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .status {
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .failure { background-color: #f8d7da; color: #721c24; }
+        .details {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Job Status Update</h2>
+        <p>
+            Job: <strong th:text="${jobName}">Job Name</strong><br/>
+            Status: <span class="status" th:classappend="${error != null ? 'failure' : 'success'}" 
+                         th:text="${error != null ? 'Failed' : 'Succeeded'}">Status</span>
+        </p>
+    </div>
+
+    <div class="details">
+        <h3>Execution Details</h3>
+        <table>
+            <tr>
+                <th>Run ID:</th>
+                <td th:text="${runId}">123</td>
+            </tr>
+            <tr th:if="${duration != null}">
+                <th>Duration:</th>
+                <td th:text="${duration + ' ms'}">1000 ms</td>
+            </tr>
+            <tr th:if="${startTime != null}">
+                <th>Start Time:</th>
+                <td th:text="${#dates.format(startTime, 'yyyy-MM-dd HH:mm:ss')}">2025-01-01 12:00:00</td>
+            </tr>
+            <tr th:if="${endTime != null}">
+                <th>End Time:</th>
+                <td th:text="${#dates.format(endTime, 'yyyy-MM-dd HH:mm:ss')}">2025-01-01 12:01:00</td>
+            </tr>
+            <tr th:if="${error != null}">
+                <th>Error:</th>
+                <td th:text="${error}">Error message</td>
+            </tr>
+            <tr th:if="${attempt != null}">
+                <th>Attempt:</th>
+                <td th:text="${attempt + ' of ' + maxAttempts}">1 of 3</td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Job Execution Success</title>
+</head>
+<body>
+    <h2>Job Execution Successful</h2>
+    <p>Job <strong th:text="${jobName}">Job Name</strong> has completed successfully.</p>
+    
+    <h3>Execution Details:</h3>
+    <ul>
+        <li>Run ID: <span th:text="${runId}">RUN-ID</span></li>
+        <li>Start Time: <span th:text="${#temporals.format(startTime, 'yyyy-MM-dd HH:mm:ss')}">START-TIME</span></li>
+        <li>End Time: <span th:text="${#temporals.format(endTime, 'yyyy-MM-dd HH:mm:ss')}">END-TIME</span></li>
+        <li>Duration: <span th:text="${duration + ' ms'}">DURATION</span></li>
+    </ul>
+</body>
+</html>

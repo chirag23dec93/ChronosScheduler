@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>New Job Created</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .details {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .priority {
+            font-weight: bold;
+            padding: 3px 8px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        .HIGH { background-color: #f8d7da; color: #721c24; }
+        .MEDIUM { background-color: #fff3cd; color: #856404; }
+        .LOW { background-color: #d4edda; color: #155724; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>New Job Created</h2>
+        <p>
+            Job: <strong th:text="${jobName}">Job Name</strong><br/>
+            Type: <span th:text="${jobType}">Job Type</span><br/>
+            Priority: <span class="priority" th:classappend="${priority}" th:text="${priority}">Priority</span>
+        </p>
+    </div>
+
+    <div class="details">
+        <h3>Schedule Details</h3>
+        <table>
+            <tr>
+                <th>Schedule Type:</th>
+                <td th:text="${schedule.scheduleType}">CRON</td>
+            </tr>
+            <tr th:if="${schedule.cronExpression}">
+                <th>Cron Expression:</th>
+                <td th:text="${schedule.cronExpression}">* * * * * ?</td>
+            </tr>
+            <tr th:if="${schedule.runAt}">
+                <th>Run At:</th>
+                <td th:text="${#temporals.format(schedule.runAt, 'yyyy-MM-dd HH:mm:ss')}">2025-01-01 12:00:00</td>
+            </tr>
+            <tr th:if="${schedule.intervalSeconds}">
+                <th>Interval:</th>
+                <td th:text="${schedule.intervalSeconds + ' seconds'}">60 seconds</td>
+            </tr>
+            <tr>
+                <th>Timezone:</th>
+                <td th:text="${schedule.timezone}">UTC</td>
+            </tr>
+            <tr>
+                <th>Misfire Policy:</th>
+                <td th:text="${schedule.misfirePolicy}">FIRE_NOW</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="details">
+        <h3>Retry Policy</h3>
+        <table>
+            <tr>
+                <th>Max Attempts:</th>
+                <td th:text="${retryPolicy.maxAttempts}">3</td>
+            </tr>
+            <tr>
+                <th>Backoff Strategy:</th>
+                <td th:text="${retryPolicy.backoffStrategy}">FIXED</td>
+            </tr>
+            <tr>
+                <th>Backoff Seconds:</th>
+                <td th:text="${retryPolicy.backoffSeconds}">60</td>
+            </tr>
+            <tr>
+                <th>Retry On:</th>
+                <td th:text="${retryPolicy.retryOn}">5xx</td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>

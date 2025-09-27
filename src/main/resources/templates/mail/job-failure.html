@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Job Execution Failed</title>
+</head>
+<body>
+    <h2 style="color: #dc3545;">Job Execution Failed</h2>
+    <p>Job <strong th:text="${jobName}">Job Name</strong> has failed.</p>
+    
+    <h3>Execution Details:</h3>
+    <ul>
+        <li>Run ID: <span th:text="${runId}">RUN-ID</span></li>
+        <li>Attempt: <span th:text="${attempt + ' of ' + maxAttempts}">ATTEMPT</span></li>
+        <li>Error: <pre th:text="${error}">ERROR</pre></li>
+    </ul>
+    
+    <p th:if="${attempt < maxAttempts}">
+        The job will be automatically retried.
+    </p>
+    <p th:if="${attempt >= maxAttempts}">
+        Maximum retry attempts reached. The job has been moved to the Dead Letter Queue.
+    </p>
+</body>
+</html>
