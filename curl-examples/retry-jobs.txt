@@ -1,0 +1,430 @@
+                    CHRONOS JOB SCHEDULER - RETRY POLICY EXAMPLES
+================================================================================
+
+This file contains comprehensive curl request examples demonstrating different
+retry policies and failure scenarios in the Chronos job scheduling system.
+Each example shows how to configure retry behavior for various job types.
+
+================================================================================
+                              RETRY POLICY BASICS
+================================================================================
+
+Retry Policy Configuration:
+- maxAttempts: Maximum number of retry attempts (1-10)
+- backoffStrategy: FIXED or EXPONENTIAL
+- backoffSeconds: Delay between retries in seconds
+- retryOn: Array of conditions that trigger retries
+
+Available Retry Conditions:
+- TIMEOUT: Connection or execution timeouts
+- CONNECTION_ERROR: Network connectivity issues
+- HTTP_5XX: HTTP server errors (500-599)
+- HTTP_4XX: HTTP client errors (400-499) 
+- DATABASE_ERROR: Database connection/query failures
+- KAFKA_ERROR: Kafka producer/consumer errors
+- SCRIPT_ERROR: Script execution failures
+- FILE_ERROR: File system operation failures
+
+================================================================================
+1. FIXED BACKOFF RETRY - HTTP JOB WITH 5XX ERRORS
+================================================================================
+
+# This job will retry 3 times with 30-second fixed intervals on HTTP 5xx errors
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Fixed Backoff Retry Test",
+    "type": "HTTP",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-27T23:30:00+05:30",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 30,
+      "retryOn": ["HTTP_5XX", "TIMEOUT", "CONNECTION_ERROR"]
+    },
+    "payload": {
+      "type": "HTTP",
+      "url": "https://httpstat.us/500",
+      "method": "GET",
+      "headers": {
+        "User-Agent": "Chronos-Scheduler/1.0"
+      },
+      "timeoutSeconds": 10
+    }
+  }'
+
+================================================================================
+2. EXPONENTIAL BACKOFF RETRY - DATABASE JOB
+================================================================================
+
+# This job uses exponential backoff: 10s, 20s, 40s, 80s delays
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Exponential Backoff Database Retry",
+    "type": "DATABASE",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-27T23:32:00+05:30",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 4,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 10,
+      "retryOn": ["DATABASE_ERROR", "CONNECTION_ERROR", "TIMEOUT"]
+    },
+    "payload": {
+      "type": "DATABASE",
+      "databaseUrl": "jdbc:mysql://nonexistent-host:3306/test_db?user=test&password=test",
+      "query": "SELECT COUNT(*) as count FROM users",
+      "queryTimeoutSeconds": 5,
+      "readOnly": true
+    }
+  }'
+
+================================================================================
+3. AGGRESSIVE RETRY - KAFKA MESSAGE QUEUE JOB
+================================================================================
+
+# Maximum retries with short intervals for critical message delivery
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Aggressive Kafka Retry",
+    "type": "MESSAGE_QUEUE",
+    "priority": "CRITICAL",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-27T23:34:00+05:30",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 10,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 5,
+      "retryOn": ["KAFKA_ERROR", "CONNECTION_ERROR", "TIMEOUT"]
+    },
+    "payload": {
+      "type": "MESSAGE_QUEUE",
+      "operationType": "PRODUCE",
+      "queueName": "nonexistent-kafka-topic-that-will-fail",
+      "messageBody": "Critical message that must be delivered",
+      "queueConfig": {
+        "brokers": "nonexistent-kafka:9092",
+        "acks": "all",
+        "retries": 0
+      },
+      "batchSize": 1
+    }
+  }'
+
+================================================================================
+4. CONSERVATIVE RETRY - SCRIPT JOB WITH LONG DELAYS
+================================================================================
+
+# Conservative approach with long delays for resource-intensive operations
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Conservative Script Retry",
+    "type": "SCRIPT",
+    "priority": "LOW",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-27T23:36:00+05:30",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 2,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 120,
+      "retryOn": ["SCRIPT_ERROR", "TIMEOUT"]
+    },
+    "payload": {
+      "type": "SCRIPT",
+      "script": "#!/bin/bash\necho \"Attempting resource-intensive operation...\"\nexit 1",
+      "timeoutSeconds": 30,
+      "workingDirectory": "/tmp"
+    }
+  }'
+
+================================================================================
+5. NO RETRY POLICY - FAIL FAST APPROACH
+================================================================================
+
+# Job with no retry policy - fails immediately on first error
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Fail Fast HTTP Job",
+    "type": "HTTP",
+    "priority": "LOW",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-27T23:38:00+05:30",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 1,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 0,
+      "retryOn": []
+    },
+    "payload": {
+      "type": "HTTP",
+      "url": "https://httpstat.us/404",
+      "method": "GET",
+      "timeoutSeconds": 5
+    }
+  }'
+
+================================================================================
+6. SELECTIVE RETRY - ONLY SPECIFIC ERROR TYPES
+================================================================================
+
+# Only retry on specific conditions, ignore others
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Selective Retry HTTP Job",
+    "type": "HTTP",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-27T23:40:00+05:30",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 5,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 15,
+      "retryOn": ["TIMEOUT", "CONNECTION_ERROR"]
+    },
+    "payload": {
+      "type": "HTTP",
+      "url": "https://httpstat.us/503",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": "{\"test\": \"data\"}",
+      "timeoutSeconds": 3
+    }
+  }'
+
+================================================================================
+7. DB_TO_KAFKA RETRY - DATA STREAMING WITH RESILIENCE
+================================================================================
+
+# Retry policy for data streaming jobs with database and Kafka failures
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Resilient DB to Kafka Stream",
+    "type": "DB_TO_KAFKA",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-27T23:42:00+05:30",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 20,
+      "retryOn": ["DATABASE_ERROR", "KAFKA_ERROR", "CONNECTION_ERROR"]
+    },
+    "payload": {
+      "type": "DB_TO_KAFKA",
+      "databaseUrl": "jdbc:mysql://mysql:3306/chronos_db?user=chronos_user1&password=StrongPassword123!",
+      "query": "SELECT id, name, status FROM jobs WHERE status = \"FAILED\" LIMIT 10",
+      "kafkaTopic": "failed-jobs-retry",
+      "kafkaKeyField": "id",
+      "batchSize": 5,
+      "includeMetadata": true,
+      "skipOnError": false
+    }
+  }'
+
+================================================================================
+8. FILE SYSTEM RETRY - HANDLING FILE OPERATION FAILURES
+================================================================================
+
+# Retry file operations with exponential backoff
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "File Operation Retry",
+    "type": "FILE_SYSTEM",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-27T23:44:00+05:30",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 4,
+      "backoffStrategy": "EXPONENTIAL",
+      "backoffSeconds": 10,
+      "retryOn": ["FILE_ERROR", "CONNECTION_ERROR"]
+    },
+    "payload": {
+      "type": "FILE_SYSTEM",
+      "operation": "COPY",
+      "sourcePath": "/nonexistent/source/file.txt",
+      "targetPath": "/tmp/destination/file.txt",
+      "createDirectories": true,
+      "overwriteExisting": true
+    }
+  }'
+
+================================================================================
+9. CACHE RETRY - REDIS OPERATIONS WITH FALLBACK
+================================================================================
+
+# Cache operations with retry on connection failures
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Cache Operation Retry",
+    "type": "CACHE",
+    "priority": "MEDIUM",
+    "schedule": {
+      "scheduleType": "ONCE",
+      "runAt": "2025-09-27T23:46:00+05:30",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 30,
+      "retryOn": ["CONNECTION_ERROR", "TIMEOUT"]
+    },
+    "payload": {
+      "type": "CACHE",
+      "operation": "WARM",
+      "cacheRegion": "user-cache",
+      "keys": ["user:1", "user:2", "user:3"],
+      "ttlSeconds": 3600
+    }
+  }'
+
+================================================================================
+10. RECURRING JOB WITH RETRY - CRON SCHEDULE
+================================================================================
+
+# Recurring job that retries on each execution failure
+
+curl -X POST http://localhost:8080/api/jobs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "name": "Recurring HTTP Health Check with Retry",
+    "type": "HTTP",
+    "priority": "HIGH",
+    "schedule": {
+      "scheduleType": "CRON",
+      "cronExpression": "0 */5 * * * *",
+      "timezone": "Asia/Kolkata",
+      "misfirePolicy": "FIRE_NOW"
+    },
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffStrategy": "FIXED",
+      "backoffSeconds": 60,
+      "retryOn": ["HTTP_5XX", "TIMEOUT", "CONNECTION_ERROR"]
+    },
+    "payload": {
+      "type": "HTTP",
+      "url": "https://httpstat.us/random/200,500,503",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json"
+      },
+      "timeoutSeconds": 10
+    }
+  }'
+
+================================================================================
+                              RETRY MONITORING COMMANDS
+================================================================================
+
+# Check job retry statistics
+curl -X GET "http://localhost:8080/actuator/job-statistics" \
+  -H "Authorization: Bearer $TOKEN"
+
+# View failed jobs in Dead Letter Queue
+curl -X GET "http://localhost:8080/api/dlq/events" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Get job run history with retry attempts
+curl -X GET "http://localhost:8080/api/jobs/{jobId}/runs" \
+  -H "Authorization: Bearer $TOKEN"
+
+# View detailed logs for specific run
+curl -X GET "http://localhost:8080/api/jobs/{jobId}/runs/{runId}/logs" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Replay failed job from DLQ
+curl -X POST "http://localhost:8080/api/dlq/events/{eventId}/replay" \
+  -H "Authorization: Bearer $TOKEN"
+
+================================================================================
+                              RETRY BEST PRACTICES
+================================================================================
+
+1. **Choose Appropriate Backoff Strategy:**
+   - FIXED: For predictable, consistent delays
+   - EXPONENTIAL: For reducing load on failing systems
+
+2. **Set Reasonable Max Attempts:**
+   - Critical jobs: 5-10 attempts
+   - Regular jobs: 2-3 attempts
+   - Resource-intensive: 1-2 attempts
+
+3. **Select Relevant Retry Conditions:**
+   - Include transient errors (timeouts, connection issues)
+   - Exclude permanent errors (authentication, not found)
+
+4. **Consider System Load:**
+   - Longer delays for high-load systems
+   - Shorter delays for time-sensitive operations
+
+5. **Monitor Retry Patterns:**
+   - Use Grafana dashboards to track retry rates
+   - Set up alerts for excessive retries
+   - Review DLQ events regularly
+
+6. **Test Retry Scenarios:**
+   - Simulate network failures
+   - Test with overloaded dependencies
+   - Verify exponential backoff behavior
+
+================================================================================
+                              END OF RETRY EXAMPLES
+================================================================================

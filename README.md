@@ -1,43 +1,97 @@
-# Chronos - Distributed Job Scheduling System
+# 🚀 Chronos - Enterprise Job Scheduling System
 
-Chronos is a production-grade distributed job scheduling system built with Spring Boot that enables reliable execution, management, and monitoring of one-time and recurring jobs.
+[![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.java.net/projects/jdk/21/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.1.4-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Build Status](https://img.shields.io/badge/Build-Passing-success.svg)](#)
 
-## 🎯 Features
+Chronos is a **production-grade distributed job scheduling system** built with modern Java and Spring Boot. It provides reliable execution, comprehensive management, and advanced monitoring of one-time and recurring jobs with enterprise-level features.
 
-- **Job Scheduling**: Submit jobs to run immediately or at a future time
-- **Recurring Jobs**: Support for hourly, daily, weekly, and monthly schedules
-- **Job Management**: View status, cancel, pause/resume, and reschedule jobs via RESTful APIs
-- **Failure Handling**: Automatic retries with configurable policies and backoff strategies
-- **Observability**: Detailed execution logs, status tracking, and system health metrics
-- **Security**: JWT-based authentication and role-based access control
-- **Scalability**: Designed for horizontal scaling with clustered Quartz scheduler
+## 🎯 Key Features
 
-## 🏗️ Architecture
+### 🔧 **Job Management**
+- **Multiple Job Types**: HTTP, Database, File System, Message Queue, Cache, Email, Reports
+- **Flexible Scheduling**: One-time, CRON expressions, interval-based
+- **Job Lifecycle**: Create, pause, resume, cancel, delete with full audit trail
+- **Priority Queuing**: HIGH, MEDIUM, LOW priority job execution
+- **Retry Policies**: Configurable retry with exponential/fixed backoff
 
-```plantuml
-@startuml
-!theme plain
-skinparam componentStyle rectangle
+### 🔒 **Security & Authentication**
+- **JWT-based Authentication**: Secure token-based access
+- **Role-based Access Control**: USER and ADMIN roles
+- **API Security**: Protected endpoints with proper authorization
+- **Audit Logging**: Complete user action tracking
 
-[REST API Layer] as api
-[Service Layer] as service
-[Scheduler Layer] as scheduler
-[Worker/Executor] as worker
-database "PostgreSQL" as db
-queue "Notification\nService" as notify
+### 📊 **Monitoring & Observability**
+- **Prometheus Metrics**: Job execution statistics and performance
+- **Health Checks**: System health and cluster status
+- **Execution Logs**: Detailed job execution tracking
+- **Grafana Dashboards**: Real-time monitoring and alerting
 
-api --> service : Submit/Control Jobs
-service --> scheduler : Schedule/Trigger
-scheduler --> worker : Execute
-worker --> db : Record Status/Logs
-worker --> notify : On completion/failure
+### 🏗️ **Enterprise Architecture**
+- **Horizontal Scaling**: Quartz clustering support
+- **High Availability**: Distributed execution with failover
+- **Database Support**: MySQL, PostgreSQL with connection pooling
+- **Message Queues**: Kafka and RabbitMQ integration
+- **Caching**: Redis integration for performance
 
-note right of api : JWT Auth + RBAC
-note right of scheduler : Quartz Cluster
-note right of worker : Retries + DLQ
-note right of db : ACID + Idempotency
-@enduml
+## 🏗️ System Architecture
+
+### High-Level Architecture
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        UI[Web UI]
+        API[REST API]
+        CLI[CLI Tools]
+    end
+    
+    subgraph "Application Layer"
+        AUTH[Authentication]
+        CTRL[Controllers]
+        SVC[Services]
+        EXEC[Job Executors]
+    end
+    
+    subgraph "Scheduler Layer"
+        QUARTZ[Quartz Scheduler]
+        CLUSTER[Cluster Manager]
+    end
+    
+    subgraph "Data Layer"
+        DB[(MySQL/PostgreSQL)]
+        REDIS[(Redis Cache)]
+        KAFKA[(Kafka)]
+    end
+    
+    subgraph "Monitoring"
+        METRICS[Prometheus]
+        GRAFANA[Grafana]
+        LOGS[Log Aggregation]
+    end
+    
+    UI --> API
+    CLI --> API
+    API --> AUTH
+    API --> CTRL
+    CTRL --> SVC
+    SVC --> EXEC
+    SVC --> QUARTZ
+    QUARTZ --> CLUSTER
+    EXEC --> DB
+    EXEC --> REDIS
+    EXEC --> KAFKA
+    SVC --> METRICS
+    METRICS --> GRAFANA
+    SVC --> LOGS
 ```
+
+### Component Overview
+- **REST API**: RESTful endpoints with OpenAPI documentation
+- **Authentication**: JWT-based security with role-based access
+- **Job Executors**: Pluggable execution engines for different job types
+- **Quartz Scheduler**: Enterprise-grade job scheduling with clustering
+- **Monitoring**: Comprehensive observability with Prometheus and Grafana
 
 ### Job Execution Flow
 

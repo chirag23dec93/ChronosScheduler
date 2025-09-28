@@ -48,9 +48,16 @@ scheduling options.
    - Redis integration with TTL support
    - Multi-region synchronization
    - Performance monitoring and statistics
-   - Backup and disaster recovery scenarios
 
-6. script-jobs.txt
+6. retry-jobs.txt
+   - RETRY POLICY examples (10 scenarios)
+   - Fixed and exponential backoff strategies
+   - Selective retry conditions and error handling
+   - Aggressive, conservative, and fail-fast approaches
+   - Retry monitoring and best practices
+   - DLQ integration and job replay functionality
+
+7. script-jobs.txt
    - SCRIPT job type examples (12 scenarios)
    - Bash, Python, and other script execution
    - System monitoring and maintenance scripts
@@ -58,7 +65,7 @@ scheduling options.
    - Performance benchmarking and testing
    - Docker and network connectivity scripts
 
-7. file-system-jobs.txt
+8. file-system-jobs.txt
    - FILE_SYSTEM job type examples (12 scenarios)
    - COPY, MOVE, DELETE, PROCESS, COMPRESS operations
    - File synchronization and backup
@@ -66,7 +73,7 @@ scheduling options.
    - Security operations (encryption, validation)
    - Large file handling and monitoring
 
-8. dummy-jobs.txt
+9. dummy-jobs.txt
    - DUMMY job type examples (15 scenarios)
    - Testing and development scenarios
    - Performance and load testing
